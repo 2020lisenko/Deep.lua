@@ -79,33 +79,45 @@ function Player:Initialize(Tab)
                     self.flyConnection:Disconnect()
                 end
                 
+                -- Store references for closure
+                local flyChar = char
+                local flyRoot = root
+                local flyHum = hum
+                
                 local bodyGyro = Instance.new("BodyGyro")
-                bodyGyro.P = 9e4
+                bodyGyro.P = 10000
                 bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-                bodyGyro.CFrame = root.CFrame
-                bodyGyro.Parent = root
+                bodyGyro.CFrame = flyRoot.CFrame
+                bodyGyro.Parent = flyRoot
                 
                 local bodyVelocity = Instance.new("BodyVelocity")
                 bodyVelocity.Velocity = Vector3.new(0, 0, 0)
                 bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                bodyVelocity.Parent = root
+                bodyVelocity.Parent = flyRoot
                 
                 self.flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                    if self.flyEnabled and char and root and hum then
+                    if self.flyEnabled and flyChar and flyRoot and flyHum and flyChar.Parent then
+                        -- Align body to camera
                         bodyGyro.CFrame = workspace.CurrentCamera.CFrame
                         
-                        local moveDirection = Vector3.new()
-                        if hum.MoveDirection.Magnitude > 0 then
-                            moveDirection = hum.MoveDirection * self.flySpeed
+                        -- Get movement input from humanoid
+                        local moveDir = flyHum.MoveVector
+                        local camDir = workspace.CurrentCamera.CFrame.LookVector
+                        local camRight = workspace.CurrentCamera.CFrame.RightVector
+                        local camUp = workspace.CurrentCamera.CFrame.UpVector
+                        
+                        -- Calculate movement relative to camera
+                        local moveVector = (camDir * moveDir.Z + camRight * moveDir.X) * self.flySpeed
+                        
+                        -- Handle vertical movement (Space to go up, Ctrl to go down)
+                        local verticalMove = Vector3.new(0, 0, 0)
+                        if flyHum.Jump then
+                            verticalMove = camUp * self.flySpeed
+                            flyHum.Jump = false
                         end
                         
-                        bodyVelocity.Velocity = moveDirection
-                        
-                        -- Управление высотой с помощью прыжка
-                        if hum.Jump then
-                            bodyVelocity.Velocity = bodyVelocity.Velocity + Vector3.new(0, self.flySpeed, 0)
-                        end
-                        hum.Jump = false
+                        -- Apply velocity
+                        bodyVelocity.Velocity = moveVector + verticalMove
                     end
                 end)
                 print("Fly enabled")
@@ -122,6 +134,18 @@ function Player:Initialize(Tab)
                 end
                 print("Fly disabled")
             end
+        end
+    })
+    
+    -- Fly Speed slider
+    Character:AddSlider("FlySpeed", {
+        Text = "Fly Speed",
+        Default = 50,
+        Min = 10,
+        Max = 200,
+        Rounding = 0,
+        Callback = function(v)
+            self.flySpeed = v
         end
     })
     
