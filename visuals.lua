@@ -14,8 +14,6 @@ function Visuals:Initialize(Tab)
     -- Сервисы
     self.Lighting = game:GetService("Lighting")
     self.RunService = game:GetService("RunService")
-    self.Players = game:GetService("Players")
-    self.LocalPlayer = self.Players.LocalPlayer
     
     -- Сохранение оригинальных значений
     self.DefaultSettings = {
@@ -28,6 +26,15 @@ function Visuals:Initialize(Tab)
         ExposureCompensation = self.Lighting.ExposureCompensation
     }
     
+    -- Сохраняем состояние пост-эффектов
+    self.DefaultPostEffects = {}
+    for _, effect in ipairs({"Bloom", "Blur", "ColorCorrection", "SunRays"}) do
+        local e = self.Lighting:FindFirstChild(effect)
+        if e then
+            self.DefaultPostEffects[effect] = e.Enabled
+        end
+    end
+    
     self:LoadDefaultSettings()
     self:CreateUI(Tab)
     self:StartVisualLoop()
@@ -37,7 +44,6 @@ end
 
 function Visuals:LoadDefaultSettings()
     self.VisualsEnv.Settings = {
-        Enabled = false,
         FullBright = false,
         NoFog = false,
         NoShadows = false,
@@ -53,11 +59,6 @@ function Visuals:LoadDefaultSettings()
         DisableBlur = false,
         DisableColorCorrection = false,
         DisableSunRays = false,
-        ChamsEnabled = false,
-        ChamsColor = Color3.fromRGB(255, 0, 0),
-        ChamsTransparency = 0.5,
-        WireframeEnabled = false,
-        WireframeThickness = 0.01,
         SkyboxEnabled = false,
         SkyboxId = ""
     }
@@ -66,11 +67,6 @@ end
 function Visuals:ApplySettings()
     local settings = self.VisualsEnv.Settings
     
-    if not settings.Enabled then
-        self:RestoreDefaults()
-        return
-    end
-    
     -- FullBright
     if settings.FullBright then
         self.Lighting.Brightness = 2
@@ -78,37 +74,68 @@ function Visuals:ApplySettings()
         self.Lighting.FogEnd = 100000
         self.Lighting.GlobalShadows = false
         self.Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    else
+        self.Lighting.Brightness = self.DefaultSettings.Brightness
+        if not settings.CustomTime then
+            self.Lighting.ClockTime = self.DefaultSettings.ClockTime
+        end
+        if not settings.NoFog then
+            self.Lighting.FogEnd = self.DefaultSettings.FogEnd
+        end
+        if not settings.NoShadows then
+            self.Lighting.GlobalShadows = self.DefaultSettings.GlobalShadows
+        end
+        if not settings.CustomAmbient then
+            self.Lighting.OutdoorAmbient = self.DefaultSettings.OutdoorAmbient
+        end
     end
     
     -- NoFog
     if settings.NoFog then
         self.Lighting.FogEnd = 100000
         self.Lighting.FogStart = 100000
+    else
+        self.Lighting.FogEnd = self.DefaultSettings.FogEnd
+        self.Lighting.FogStart = self.DefaultSettings.FogStart
     end
     
     -- NoShadows
     if settings.NoShadows then
         self.Lighting.GlobalShadows = false
+    else
+        self.Lighting.GlobalShadows = self.DefaultSettings.GlobalShadows
     end
     
     -- CustomTime
     if settings.CustomTime then
         self.Lighting.ClockTime = settings.CustomTimeValue
+    else
+        self.Lighting.ClockTime = self.DefaultSettings.ClockTime
     end
     
     -- CustomBrightness
     if settings.CustomBrightness then
         self.Lighting.Brightness = settings.BrightnessValue
+    else
+        if not settings.FullBright then
+            self.Lighting.Brightness = self.DefaultSettings.Brightness
+        end
     end
     
     -- CustomAmbient
     if settings.CustomAmbient then
         self.Lighting.OutdoorAmbient = settings.AmbientColor
+    else
+        if not settings.FullBright then
+            self.Lighting.OutdoorAmbient = self.DefaultSettings.OutdoorAmbient
+        end
     end
     
     -- CustomExposure
     if settings.CustomExposure then
         self.Lighting.ExposureCompensation = settings.ExposureValue
+    else
+        self.Lighting.ExposureCompensation = self.DefaultSettings.ExposureCompensation
     end
     
     -- Пост-обработка
@@ -117,23 +144,11 @@ function Visuals:ApplySettings()
     self:TogglePostEffect("ColorCorrection", not settings.DisableColorCorrection)
     self:TogglePostEffect("SunRays", not settings.DisableSunRays)
     
-    -- Chams
-    if settings.ChamsEnabled then
-        self:ApplyChams()
-    else
-        self:RemoveChams()
-    end
-    
-    -- Wireframe
-    if settings.WireframeEnabled then
-        self:ApplyWireframe()
-    else
-        self:RemoveWireframe()
-    end
-    
     -- Skybox
     if settings.SkyboxEnabled and settings.SkyboxId ~= "" then
         self:ApplySkybox(settings.SkyboxId)
+    else
+        self:RemoveSkybox()
     end
 end
 
@@ -144,77 +159,10 @@ function Visuals:TogglePostEffect(effectName, enabled)
     end
 end
 
-function Visuals:ApplyChams()
-    local settings = self.VisualsEnv.Settings
-    
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player ~= self.LocalPlayer and player.Character then
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if not part:FindFirstChild("ChamsHighlight") then
-                        local highlight = Instance.new("Highlight")
-                        highlight.Name = "ChamsHighlight"
-                        highlight.FillColor = settings.ChamsColor
-                        highlight.FillTransparency = settings.ChamsTransparency
-                        highlight.OutlineColor = settings.ChamsColor
-                        highlight.OutlineTransparency = 0
-                        highlight.Adornee = part
-                        highlight.Parent = part
-                    end
-                end
-            end
-        end
-    end
-end
-
-function Visuals:RemoveChams()
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player.Character then
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                local highlight = part:FindFirstChild("ChamsHighlight")
-                if highlight then
-                    highlight:Destroy()
-                end
-            end
-        end
-    end
-end
-
-function Visuals:ApplyWireframe()
-    local settings = self.VisualsEnv.Settings
-    
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player ~= self.LocalPlayer and player.Character then
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") and not part:FindFirstChild("WireframeHighlight") then
-                    local highlight = Instance.new("SelectionBox")
-                    highlight.Name = "WireframeHighlight"
-                    highlight.LineThickness = settings.WireframeThickness
-                    highlight.Color3 = settings.ChamsColor
-                    highlight.Transparency = 0.5
-                    highlight.Adornee = part
-                    highlight.Parent = part
-                end
-            end
-        end
-    end
-end
-
-function Visuals:RemoveWireframe()
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player.Character then
-            for _, part in ipairs(player.Character:GetDescendants()) do
-                local wireframe = part:FindFirstChild("WireframeHighlight")
-                if wireframe then
-                    wireframe:Destroy()
-                end
-            end
-        end
-    end
-end
-
 function Visuals:ApplySkybox(skyboxId)
+    self:RemoveSkybox()
     local sky = Instance.new("Sky")
+    sky.Name = "DeepCustomSky"
     sky.SkyboxBk = skyboxId
     sky.SkyboxDn = skyboxId
     sky.SkyboxFt = skyboxId
@@ -222,6 +170,14 @@ function Visuals:ApplySkybox(skyboxId)
     sky.SkyboxRt = skyboxId
     sky.SkyboxUp = skyboxId
     sky.Parent = self.Lighting
+end
+
+function Visuals:RemoveSkybox()
+    for _, child in ipairs(self.Lighting:GetChildren()) do
+        if child:IsA("Sky") and child.Name == "DeepCustomSky" then
+            child:Destroy()
+        end
+    end
 end
 
 function Visuals:RestoreDefaults()
@@ -233,39 +189,24 @@ function Visuals:RestoreDefaults()
     self.Lighting.ClockTime = self.DefaultSettings.ClockTime
     self.Lighting.ExposureCompensation = self.DefaultSettings.ExposureCompensation
     
-    self:RemoveChams()
-    self:RemoveWireframe()
-    
-    -- Удаление Sky
-    for _, child in ipairs(self.Lighting:GetChildren()) do
-        if child:IsA("Sky") then
-            child:Destroy()
-        end
+    -- Восстанавливаем пост-эффекты
+    for effectName, enabled in pairs(self.DefaultPostEffects) do
+        self:TogglePostEffect(effectName, enabled)
     end
+    
+    self:RemoveSkybox()
 end
 
 function Visuals:StartVisualLoop()
     self.Connections.RenderStepped = self.RunService.RenderStepped:Connect(function()
-        if self.VisualsEnv.Settings.Enabled then
-            self:ApplySettings()
-        end
+        self:ApplySettings()
     end)
 end
 
 function Visuals:CreateUI(Tab)
     local Lighting = Tab:AddLeftGroupbox("Lighting Settings")
     local PostProcessing = Tab:AddRightGroupbox("Post Processing")
-    local PlayerVisuals = Tab:AddLeftGroupbox("Player Visuals")
-    
-    -- Main Toggle
-    Lighting:AddToggle("VisualsEnabled", {
-        Text = "Enabled",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.Enabled = v
-            if not v then self:RestoreDefaults() end
-        end
-    })
+    local Skybox = Tab:AddLeftGroupbox("Skybox")
     
     -- FullBright
     Lighting:AddToggle("FullBright", {
@@ -348,6 +289,37 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.ExposureValue = v end
     })
     
+    Lighting:AddDivider()
+    
+    -- Кнопка сброса
+    Lighting:AddButton("Restore Defaults", function()
+        -- Сбрасываем все настройки
+        self.VisualsEnv.Settings = {
+            FullBright = false,
+            NoFog = false,
+            NoShadows = false,
+            CustomTime = false,
+            CustomTimeValue = 12,
+            CustomBrightness = false,
+            BrightnessValue = 2,
+            CustomAmbient = false,
+            AmbientColor = Color3.fromRGB(255, 255, 255),
+            CustomExposure = false,
+            ExposureValue = 0,
+            DisableBloom = false,
+            DisableBlur = false,
+            DisableColorCorrection = false,
+            DisableSunRays = false,
+            SkyboxEnabled = false,
+            SkyboxId = ""
+        }
+        
+        self:RestoreDefaults()
+        
+        -- Обновляем UI (Library сама обновит значения)
+        print("Visuals restored to defaults")
+    end)
+    
     -- Post Processing
     PostProcessing:AddToggle("DisableBloom", {
         Text = "Disable Bloom",
@@ -373,56 +345,14 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.DisableSunRays = v end
     })
     
-    -- Player Visuals
-    PlayerVisuals:AddToggle("ChamsEnabled", {
-        Text = "Chams (ESP Overlay)",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.ChamsEnabled = v
-            if not v then self:RemoveChams() end
-        end
-    })
-    
-    PlayerVisuals:AddLabel("Chams Color"):AddColorPicker("ChamsColor", {
-        Default = Color3.fromRGB(255, 0, 0),
-        Callback = function(v) self.VisualsEnv.Settings.ChamsColor = v end
-    })
-    
-    PlayerVisuals:AddSlider("ChamsTransparency", {
-        Text = "Chams Transparency",
-        Default = 0.5,
-        Min = 0,
-        Max = 1,
-        Rounding = 2,
-        Callback = function(v) self.VisualsEnv.Settings.ChamsTransparency = v end
-    })
-    
-    PlayerVisuals:AddToggle("WireframeEnabled", {
-        Text = "Wireframe",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.WireframeEnabled = v
-            if not v then self:RemoveWireframe() end
-        end
-    })
-    
-    PlayerVisuals:AddSlider("WireframeThickness", {
-        Text = "Wireframe Thickness",
-        Default = 0.01,
-        Min = 0.005,
-        Max = 0.1,
-        Rounding = 3,
-        Callback = function(v) self.VisualsEnv.Settings.WireframeThickness = v end
-    })
-    
     -- Skybox
-    PlayerVisuals:AddToggle("SkyboxEnabled", {
+    Skybox:AddToggle("SkyboxEnabled", {
         Text = "Custom Skybox",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.SkyboxEnabled = v end
     })
     
-    PlayerVisuals:AddDropdown("SkyboxId", {
+    Skybox:AddDropdown("SkyboxId", {
         Values = {
             "rbxassetid://123456789",
             "rbxassetid://987654321",
