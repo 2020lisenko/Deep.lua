@@ -46,15 +46,13 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Character features
     local Character = Tab:AddLeftGroupbox("Character")
     
-    -- Fly toggle
+    -- Fly
     local flyConnection
     local flyEnabled = false
-    local flySpeed = 50
     
-    local FlyToggle = Character:AddToggle("Fly", {
+    Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
         Callback = function(v)
@@ -66,39 +64,33 @@ function Player:Initialize(Tab)
             if not hum or not root then return end
             
             if flyEnabled then
-                -- Остановим предыдущее соединение если есть
-                if flyConnection then
-                    flyConnection:Disconnect()
-                end
+                if flyConnection then flyConnection:Disconnect() end
                 
                 local bodyGyro = Instance.new("BodyGyro")
                 bodyGyro.P = 9e4
                 bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-                bodyGyro.CFrame = root.CFrame
                 bodyGyro.Parent = root
                 
                 local bodyVelocity = Instance.new("BodyVelocity")
-                bodyVelocity.Velocity = Vector3.new(0, 0, 0)
                 bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 bodyVelocity.Parent = root
                 
                 flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                    if flyEnabled and char and root and hum then
-                        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
-                        
-                        local moveDirection = Vector3.new()
-                        if hum.MoveDirection.Magnitude > 0 then
-                            moveDirection = hum.MoveDirection * flySpeed
-                        end
-                        
-                        bodyVelocity.Velocity = moveDirection
-                        
-                        -- Управление высотой с помощью прыжка
-                        if hum.Jump then
-                            bodyVelocity.Velocity = bodyVelocity.Velocity + Vector3.new(0, flySpeed, 0)
-                        end
+                    if not flyEnabled or not char.Parent or not root.Parent then return end
+                    
+                    bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                    
+                    local velocity = Vector3.zero
+                    if hum.MoveDirection.Magnitude > 0 then
+                        velocity = hum.MoveDirection * 50
+                    end
+                    
+                    if hum.Jump then
+                        velocity = velocity + Vector3.new(0, 50, 0)
                         hum.Jump = false
                     end
+                    
+                    bodyVelocity.Velocity = velocity
                 end)
                 print("Fly enabled")
             else
@@ -117,11 +109,11 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Noclip toggle
+    -- Noclip
     local noclipConnection
     local noclipEnabled = false
     
-    local NoclipToggle = Character:AddToggle("Noclip", {
+    Character:AddToggle("Noclip", {
         Text = "Noclip",
         Default = false,
         Callback = function(v)
@@ -135,7 +127,7 @@ function Player:Initialize(Tab)
                             end
                         end
                     end
-                })
+                end)
                 print("Noclip enabled")
             else
                 if noclipConnection then
@@ -154,19 +146,17 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Infinite Jump toggle
+    -- Infinite Jump
     local infJumpEnabled = false
     local infJumpConnection
     
-    local InfJumpToggle = Character:AddToggle("InfiniteJump", {
+    Character:AddToggle("InfiniteJump", {
         Text = "Infinite Jump",
         Default = false,
         Callback = function(v)
             infJumpEnabled = v
             if infJumpEnabled then
-                if infJumpConnection then
-                    infJumpConnection:Disconnect()
-                end
+                if infJumpConnection then infJumpConnection:Disconnect() end
                 infJumpConnection = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
                     if gameProcessed then return end
                     if infJumpEnabled and input.KeyCode == Enum.KeyCode.Space then
@@ -190,40 +180,29 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Reset button
+    -- Reset
     Movement:AddButton("Reset Movement", function()
-        local defaultWalkSpeed = 16
-        local defaultJumpHeight = 7.2
+        WalkSpeedSlider:SetValue(16)
+        JumpHeightSlider:SetValue(7.2)
         
-        -- Устанавливаем значения слайдеров
-        WalkSpeedSlider:SetValue(defaultWalkSpeed)
-        JumpHeightSlider:SetValue(defaultJumpHeight)
-        
-        -- Применяем значения к персонажу
         local char = LocalPlayer.Character
         if char then
             local hum = char:FindFirstChild("Humanoid")
             if hum then
-                hum.WalkSpeed = defaultWalkSpeed
-                hum.JumpHeight = defaultJumpHeight
+                hum.WalkSpeed = 16
+                hum.JumpHeight = 7.2
             end
         end
-        print("Movement reset to default values")
+        print("Movement reset")
     end)
     
     print("Player module loaded!")
     
     return {
         Cleanup = function()
-            if flyConnection then
-                flyConnection:Disconnect()
-            end
-            if noclipConnection then
-                noclipConnection:Disconnect()
-            end
-            if infJumpConnection then
-                infJumpConnection:Disconnect()
-            end
+            if flyConnection then flyConnection:Disconnect() end
+            if noclipConnection then noclipConnection:Disconnect() end
+            if infJumpConnection then infJumpConnection:Disconnect() end
             if LocalPlayer.Character then
                 local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if root then
