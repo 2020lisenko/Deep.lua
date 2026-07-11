@@ -78,13 +78,12 @@ function Aimbot:GetClosestPlayer()
     local settings = self.Env.Settings
     local maxDist = settings.MaxDistance
     
+    -- Determine search radius based on FOV settings
     if self.Env.FOVSettings.Enabled then
         maxDist = self.Env.FOVSettings.Amount
     end
     
     if not self.Locked then
-        maxDist = self.Env.FOVSettings.Enabled and self.Env.FOVSettings.Amount or 2000
-        
         for _, player in ipairs(self.Services.Players:GetPlayers()) do
             if player ~= self.Services.LocalPlayer then
                 local character = player.Character
