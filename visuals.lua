@@ -40,7 +40,6 @@ function Visuals:LoadDefaultSettings()
     self.VisualsEnv.Settings = {
         FullBright = false,
         NoFog = false,
-        NoShadows = false,
         CustomTime = false,
         CustomTimeValue = 12,
         CustomAmbient = false,
@@ -93,7 +92,7 @@ function Visuals:ApplyFullBright()
         self:ApplyCustomOutdoorAmbient()
         self:ApplyCustomEnvironmentScale()
         self:ApplyNoFog()
-        self:ApplyNoShadows()
+        self:ApplyCustomShadows()
     end
 end
 
@@ -108,14 +107,11 @@ function Visuals:ApplyNoFog()
     else
         self.Lighting.FogEnd = self.OriginalValues.FogEnd
         self.Lighting.FogStart = self.OriginalValues.FogStart
-        self.Lighting.FogColor = self.OriginalValues.FogColor or Color3.fromRGB(192, 192, 192)
     end
 end
 
-function Visuals:ApplyNoShadows()
-    if self.VisualsEnv.Settings.NoShadows then
-        self.Lighting.GlobalShadows = false
-    elseif self.VisualsEnv.Settings.CustomShadows then
+function Visuals:ApplyCustomShadows()
+    if self.VisualsEnv.Settings.CustomShadows then
         self.Lighting.GlobalShadows = true
         self.Lighting.ShadowSoftness = self.VisualsEnv.Settings.ShadowSoftness
     else
@@ -233,15 +229,6 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) 
             self.VisualsEnv.Settings.NoFog = v
             self:ApplyNoFog()
-        end
-    })
-    
-    Lighting:AddToggle("NoShadows", {
-        Text = "No Shadows",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.NoShadows = v
-            self:ApplyNoShadows()
         end
     })
     
@@ -393,7 +380,7 @@ function Visuals:CreateUI(Tab)
         Default = false,
         Callback = function(v) 
             self.VisualsEnv.Settings.CustomShadows = v
-            self:ApplyNoShadows()
+            self:ApplyCustomShadows()
         end
     })
     
@@ -405,7 +392,7 @@ function Visuals:CreateUI(Tab)
         Rounding = 2,
         Callback = function(v) 
             self.VisualsEnv.Settings.ShadowSoftness = v
-            self:ApplyNoShadows()
+            self:ApplyCustomShadows()
         end
     })
     
