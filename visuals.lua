@@ -46,8 +46,6 @@ function Visuals:LoadDefaultSettings()
         NoShadows = false,
         CustomTime = false,
         CustomTimeValue = 12,
-        CustomBrightness = false,
-        BrightnessValue = 2,
         CustomAmbient = false,
         AmbientColor = Color3.fromRGB(255, 255, 255),
         CustomOutdoorAmbient = false,
@@ -60,12 +58,6 @@ function Visuals:LoadDefaultSettings()
         CustomEnvironmentScale = false,
         EnvironmentDiffuseScale = 1,
         EnvironmentSpecularScale = 1,
-        DisableBloom = false,
-        DisableBlur = false,
-        DisableColorCorrection = false,
-        DisableSunRays = false,
-        DisableDepthOfField = false,
-        DisableAtmosphere = false,
         CustomFog = false,
         FogColor = Color3.fromRGB(192, 192, 192),
         FogStart = 0,
@@ -87,6 +79,24 @@ function Visuals:ApplyFullBright()
         self.Lighting.GlobalShadows = false
         self.Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
         self.Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+        self.Lighting.EnvironmentDiffuseScale = 1
+        self.Lighting.EnvironmentSpecularScale = 1
+    else
+        self.Lighting.Brightness = self.OriginalValues.Brightness
+        self.Lighting.ClockTime = self.OriginalValues.ClockTime
+        self.Lighting.FogEnd = self.OriginalValues.FogEnd
+        self.Lighting.GlobalShadows = self.OriginalValues.GlobalShadows
+        self.Lighting.OutdoorAmbient = self.OriginalValues.OutdoorAmbient
+        self.Lighting.Ambient = self.OriginalValues.Ambient
+        self.Lighting.EnvironmentDiffuseScale = self.OriginalValues.EnvironmentDiffuseScale
+        self.Lighting.EnvironmentSpecularScale = self.OriginalValues.EnvironmentSpecularScale
+        
+        self:ApplyCustomTime()
+        self:ApplyCustomAmbient()
+        self:ApplyCustomOutdoorAmbient()
+        self:ApplyCustomEnvironmentScale()
+        self:ApplyNoFog()
+        self:ApplyNoShadows()
     end
 end
 
@@ -113,12 +123,6 @@ end
 function Visuals:ApplyCustomTime()
     if self.VisualsEnv.Settings.CustomTime then
         self.Lighting.ClockTime = self.VisualsEnv.Settings.CustomTimeValue
-    end
-end
-
-function Visuals:ApplyCustomBrightness()
-    if self.VisualsEnv.Settings.CustomBrightness then
-        self.Lighting.Brightness = self.VisualsEnv.Settings.BrightnessValue
     end
 end
 
@@ -151,28 +155,6 @@ function Visuals:ApplyCustomEnvironmentScale()
     if self.VisualsEnv.Settings.CustomEnvironmentScale then
         self.Lighting.EnvironmentDiffuseScale = self.VisualsEnv.Settings.EnvironmentDiffuseScale
         self.Lighting.EnvironmentSpecularScale = self.VisualsEnv.Settings.EnvironmentSpecularScale
-    end
-end
-
-function Visuals:ApplyPostProcessing()
-    local effects = {
-        Bloom = self.VisualsEnv.Settings.DisableBloom,
-        Blur = self.VisualsEnv.Settings.DisableBlur,
-        ColorCorrection = self.VisualsEnv.Settings.DisableColorCorrection,
-        SunRays = self.VisualsEnv.Settings.DisableSunRays,
-        DepthOfField = self.VisualsEnv.Settings.DisableDepthOfField
-    }
-    
-    for effectName, disabled in pairs(effects) do
-        local effect = self.Lighting:FindFirstChild(effectName)
-        if effect then
-            effect.Enabled = not disabled
-        end
-    end
-    
-    local atmosphere = self.Lighting:FindFirstChild("Atmosphere")
-    if atmosphere then
-        atmosphere.Enabled = not self.VisualsEnv.Settings.DisableAtmosphere
     end
 end
 
@@ -212,7 +194,6 @@ function Visuals:ApplyThirdPerson()
 end
 
 function Visuals:RestoreAll()
-    -- Восстанавливаем Lighting
     for k, v in pairs(self.OriginalValues) do
         self.Lighting[k] = v
     end
@@ -222,7 +203,6 @@ function Visuals:RestoreAll()
     self.LocalPlayer.CameraMinZoomDistance = 0.5
     self.LocalPlayer.CameraMaxZoomDistance = 10
     
-    -- Сбрасываем настройки
     self:LoadDefaultSettings()
     
     print("All visuals restored to defaults!")
@@ -230,9 +210,8 @@ end
 
 function Visuals:CreateUI(Tab)
     local Lighting = Tab:AddLeftGroupbox("Lighting")
-    local PostProcessing = Tab:AddRightGroupbox("Post Processing")
-    local Environment = Tab:AddLeftGroupbox("Environment")
-    local Misc = Tab:AddRightGroupbox("Misc")
+    local Environment = Tab:AddRightGroupbox("Environment")
+    local Misc = Tab:AddLeftGroupbox("Misc")
     
     -- Lighting Group
     Lighting:AddToggle("FullBright", {
@@ -280,27 +259,6 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) 
             self.VisualsEnv.Settings.CustomTimeValue = v
             self:ApplyCustomTime()
-        end
-    })
-    
-    Lighting:AddToggle("CustomBrightness", {
-        Text = "Custom Brightness",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.CustomBrightness = v
-            self:ApplyCustomBrightness()
-        end
-    })
-    
-    Lighting:AddSlider("BrightnessValue", {
-        Text = "Brightness",
-        Default = 2,
-        Min = 0,
-        Max = 10,
-        Rounding = 1,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.BrightnessValue = v
-            self:ApplyCustomBrightness()
         end
     })
     
@@ -500,61 +458,6 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) 
             self.VisualsEnv.Settings.SkyboxId = v
             self:ApplySkybox()
-        end
-    })
-    
-    -- Post Processing Group
-    PostProcessing:AddToggle("DisableBloom", {
-        Text = "Disable Bloom",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableBloom = v
-            self:ApplyPostProcessing()
-        end
-    })
-    
-    PostProcessing:AddToggle("DisableBlur", {
-        Text = "Disable Blur",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableBlur = v
-            self:ApplyPostProcessing()
-        end
-    })
-    
-    PostProcessing:AddToggle("DisableColorCorrection", {
-        Text = "Disable Color Correction",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableColorCorrection = v
-            self:ApplyPostProcessing()
-        end
-    })
-    
-    PostProcessing:AddToggle("DisableSunRays", {
-        Text = "Disable Sun Rays",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableSunRays = v
-            self:ApplyPostProcessing()
-        end
-    })
-    
-    PostProcessing:AddToggle("DisableDepthOfField", {
-        Text = "Disable Depth of Field",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableDepthOfField = v
-            self:ApplyPostProcessing()
-        end
-    })
-    
-    PostProcessing:AddToggle("DisableAtmosphere", {
-        Text = "Disable Atmosphere",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.DisableAtmosphere = v
-            self:ApplyPostProcessing()
         end
     })
     
