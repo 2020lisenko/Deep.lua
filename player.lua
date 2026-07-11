@@ -11,11 +11,7 @@ function Player:Initialize(Tab)
     
     self.LocalPlayer = Players.LocalPlayer
     self.Connections = {}
-    
-    -- Fly system
-    self.flyActive = false
-    self.flySpeed = 50
-    self.flyConnection = nil
+    self.noclipEnabled = false
     
     local Movement = Tab:AddLeftGroupbox("Movement")
     
@@ -82,6 +78,7 @@ function Player:Initialize(Tab)
         Text = "Noclip",
         Default = false,
         Callback = function(v)
+            self.noclipEnabled = v
             if v then
                 self:StartNoclip()
             else
@@ -117,10 +114,8 @@ function Player:StartFly()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not hum or not root then return end
     
-    -- Disable gravity
     hum.PlatformStand = true
     
-    -- Create physics objects
     local bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bv.Parent = root
@@ -130,17 +125,16 @@ function Player:StartFly()
     bg.D = 500
     bg.Parent = root
     
-    self.flyActive = true
+    local flySpeed = 50
     
-    self.flyConnection = RunService.RenderStepped:Connect(function()
-        if not self.flyActive or not char or not char.Parent then
+    local conn = RunService.RenderStepped:Connect(function()
+        if not char or not char.Parent then
             self:StopFly()
             return
         end
         
         local currentRoot = char:FindFirstChild("HumanoidRootPart")
         local currentHum = char:FindFirstChild("Humanoid")
-        
         if not currentRoot or not currentHum then
             self:StopFly()
             return
@@ -149,26 +143,26 @@ function Player:StartFly()
         local cam = workspace.CurrentCamera
         bg.CFrame = cam.CFrame
         
-        -- Get movement
-        local moveDir = currentHum.MoveVector
-        local moveVel = (cam.CFrame.LookVector * moveDir.Z + cam.CFrame.RightVector * moveDir.X) * self.flySpeed
+        flySpeed = self.flySpeed or 50
         
-        -- Vertical movement
+        local moveDir = currentHum.MoveVector
+        local moveVel = (cam.CFrame.LookVector * moveDir.Z + cam.CFrame.RightVector * moveDir.X) * flySpeed
+        
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            moveVel = moveVel + cam.CFrame.UpVector * self.flySpeed
+            moveVel = moveVel + cam.CFrame.UpVector * flySpeed
         elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-            moveVel = moveVel - cam.CFrame.UpVector * self.flySpeed
+            moveVel = moveVel - cam.CFrame.UpVector * flySpeed
         end
         
         bv.Velocity = moveVel
     end)
     
+    self.flyConnection = conn
+    table.insert(self.Connections, conn)
     print("Fly enabled")
 end
 
 function Player:StopFly()
-    self.flyActive = false
-    
     if self.flyConnection then
         self.flyConnection:Disconnect()
         self.flyConnection = nil
@@ -195,8 +189,7 @@ end
 function Player:StartNoclip()
     local conn
     conn = RunService.Stepped:Connect(function()
-        if not self.LocalPlayer.Character then
-            conn:Disconnect()
+        if not self.noclipEnabled or not self.LocalPlayer.Character then
             return
         end
         for _, part in pairs(self.LocalPlayer.Character:GetDescendants()) do
@@ -240,10 +233,10 @@ end
 
 function Player:Cleanup()
     self:StopFly()
-    self:StopNoclip()
+    self.noclipEnabled = false
     
     for _, conn in pairs(self.Connections) do
-        if conn then conn:Disconnect() end
+        if conn then pcall(function() conn:Disconnect() end) end
     end
     self.Connections = {}
     
