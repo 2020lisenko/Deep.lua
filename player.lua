@@ -8,23 +8,17 @@ function Player:Initialize(Tab)
     local RunService = game:GetService("RunService")
     local UserInputService = game:GetService("UserInputService")
     
-    -- Переменные для соединений
-    local loopSpeedConnection = nil
-    local loopJumpConnection = nil
-    local infJumpConnection = nil
     local flyConnection = nil
-    local noclipConnection = nil
     local flyBodyGyro = nil
     local flyBodyVelocity = nil
+    local walkSpeedEnabled = false
+    local walkSpeedValue = 16
+    local flySpeed = 50
     
     local Movement = Tab:AddLeftGroupbox("Movement")
     local FlyGroup = Tab:AddRightGroupbox("Fly")
-    local Other = Tab:AddLeftGroupbox("Other")
     
-    -- Custom Walk Speed
-    local walkSpeedEnabled = false
-    local walkSpeedValue = 16
-    
+    -- Walk Speed Toggle
     Movement:AddToggle("CustomWalkSpeed", {
         Text = "Custom Walk Speed",
         Default = false,
@@ -44,6 +38,7 @@ function Player:Initialize(Tab)
         end
     })
     
+    -- Walk Speed Slider
     Movement:AddSlider("WalkSpeed", {
         Text = "Walk Speed",
         Default = 16,
@@ -64,124 +59,7 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Loop Speed
-    Movement:AddToggle("LoopSpeed", {
-        Text = "Loop Speed",
-        Default = false,
-        Callback = function(v)
-            if loopSpeedConnection then
-                loopSpeedConnection:Disconnect()
-                loopSpeedConnection = nil
-            end
-            
-            if v then
-                loopSpeedConnection = RunService.RenderStepped:Connect(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local hum = char:FindFirstChild("Humanoid")
-                        if hum then
-                            hum.WalkSpeed = walkSpeedValue
-                        end
-                    end
-                end)
-            end
-        end
-    })
-    
-    -- Custom Jump Power
-    local jumpPowerEnabled = false
-    local jumpPowerValue = 50
-    
-    Movement:AddToggle("CustomJumpPower", {
-        Text = "Custom Jump Power",
-        Default = false,
-        Callback = function(v)
-            jumpPowerEnabled = v
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    if v then
-                        hum.JumpPower = jumpPowerValue
-                    else
-                        hum.JumpPower = 50
-                    end
-                end
-            end
-        end
-    })
-    
-    Movement:AddSlider("JumpPower", {
-        Text = "Jump Power",
-        Default = 50,
-        Min = 1,
-        Max = 500,
-        Rounding = 0,
-        Callback = function(v)
-            jumpPowerValue = v
-            if jumpPowerEnabled then
-                local char = LocalPlayer.Character
-                if char then
-                    local hum = char:FindFirstChild("Humanoid")
-                    if hum then
-                        hum.JumpPower = v
-                    end
-                end
-            end
-        end
-    })
-    
-    -- Loop Jump
-    Movement:AddToggle("LoopJump", {
-        Text = "Loop Jump",
-        Default = false,
-        Callback = function(v)
-            if loopJumpConnection then
-                loopJumpConnection:Disconnect()
-                loopJumpConnection = nil
-            end
-            
-            if v then
-                loopJumpConnection = RunService.RenderStepped:Connect(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local hum = char:FindFirstChild("Humanoid")
-                        if hum then
-                            hum.JumpPower = jumpPowerValue
-                        end
-                    end
-                end)
-            end
-        end
-    })
-    
-    -- Infinite Jump
-    Movement:AddToggle("InfJump", {
-        Text = "Infinite Jump",
-        Default = false,
-        Callback = function(v)
-            if infJumpConnection then
-                infJumpConnection:Disconnect()
-                infJumpConnection = nil
-            end
-            
-            if v then
-                infJumpConnection = UserInputService.JumpRequest:Connect(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        local hum = char:FindFirstChild("Humanoid")
-                        if hum then
-                            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                        end
-                    end
-                end)
-            end
-        end
-    })
-    
-    -- Fly
-    local flySpeed = 50
-    
+    -- Fly Start
     local function startFly()
         local char = LocalPlayer.Character
         if not char then return end
@@ -189,20 +67,17 @@ function Player:Initialize(Tab)
         local hrp = char:FindFirstChild("HumanoidRootPart")
         if not hrp then return end
         
-        -- Создаём BodyGyro
         flyBodyGyro = Instance.new("BodyGyro")
         flyBodyGyro.P = 9e4
         flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
         flyBodyGyro.CFrame = hrp.CFrame
         flyBodyGyro.Parent = hrp
         
-        -- Создаём BodyVelocity
         flyBodyVelocity = Instance.new("BodyVelocity")
         flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
         flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         flyBodyVelocity.Parent = hrp
         
-        -- Запускаем цикл полёта
         flyConnection = RunService.RenderStepped:Connect(function()
             local char = LocalPlayer.Character
             if not char then return end
@@ -211,7 +86,6 @@ function Player:Initialize(Tab)
             local hum = char:FindFirstChild("Humanoid")
             if not hrp or not hum then return end
             
-            -- Обновляем родителя если персонаж изменился
             if flyBodyGyro and flyBodyGyro.Parent ~= hrp then
                 flyBodyGyro.Parent = hrp
             end
@@ -253,6 +127,7 @@ function Player:Initialize(Tab)
         end)
     end
     
+    -- Fly Stop
     local function stopFly()
         if flyConnection then
             flyConnection:Disconnect()
@@ -276,6 +151,7 @@ function Player:Initialize(Tab)
         end
     end
     
+    -- Fly Toggle
     FlyGroup:AddToggle("FlyEnabled", {
         Text = "Fly",
         Default = false,
@@ -288,6 +164,7 @@ function Player:Initialize(Tab)
         end
     })
     
+    -- Fly Speed Slider
     FlyGroup:AddSlider("FlySpeed", {
         Text = "Fly Speed",
         Default = 50,
@@ -299,64 +176,12 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- NoClip
-    Other:AddToggle("NoClip", {
-        Text = "No Clip",
-        Default = false,
-        Callback = function(v)
-            if noclipConnection then
-                noclipConnection:Disconnect()
-                noclipConnection = nil
-            end
-            
-            if v then
-                noclipConnection = RunService.RenderStepped:Connect(function()
-                    local char = LocalPlayer.Character
-                    if char then
-                        for _, part in pairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false
-                            end
-                        end
-                    end
-                end)
-            else
-                local char = LocalPlayer.Character
-                if char then
-                    for _, part in pairs(char:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
-                        end
-                    end
-                end
-            end
-        end
-    })
-    
-    -- Обработчик респавна
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        char:WaitForChild("Humanoid")
-        char:WaitForChild("HumanoidRootPart")
-        
-        -- Применяем настройки после респавна
-        if walkSpeedEnabled then
-            char.Humanoid.WalkSpeed = walkSpeedValue
-        end
-        if jumpPowerEnabled then
-            char.Humanoid.JumpPower = jumpPowerValue
-        end
-    end)
-    
     print("Player module loaded!")
     
     return {
         Cleanup = function()
             print("Player cleanup!")
             stopFly()
-            if loopSpeedConnection then loopSpeedConnection:Disconnect() end
-            if loopJumpConnection then loopJumpConnection:Disconnect() end
-            if infJumpConnection then infJumpConnection:Disconnect() end
-            if noclipConnection then noclipConnection:Disconnect() end
         end
     }
 end
