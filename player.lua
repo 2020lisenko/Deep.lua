@@ -1,59 +1,50 @@
 local Player = {}
 Player.__index = Player
 
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
 function Player:Initialize(Tab)
     local self = setmetatable({}, Player)
     print("Player module loading...")
     
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-    
+    self.LocalPlayer = Players.LocalPlayer
     self.Connections = {}
-    self.flyConnection = nil
-    self.flyEnabled = false
+    
+    -- Fly system
+    self.flyActive = false
     self.flySpeed = 50
-    self.noclipConnection = nil
-    self.noclipEnabled = false
-    self.infJumpEnabled = false
-    self.infJumpConnection = nil
-    self.LocalPlayer = LocalPlayer
+    self.flyConnection = nil
     
     local Movement = Tab:AddLeftGroupbox("Movement")
     
     -- WalkSpeed
-    local WalkSpeedSlider = Movement:AddSlider("WalkSpeed", {
+    Movement:AddSlider("WalkSpeed", {
         Text = "Walk Speed",
         Default = 16,
         Min = 1,
         Max = 200,
         Rounding = 0,
         Callback = function(v)
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    hum.WalkSpeed = v
-                    print("WalkSpeed set to:", v)
-                end
+            local char = self.LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = v
             end
         end
     })
     
     -- JumpHeight
-    local JumpHeightSlider = Movement:AddSlider("JumpHeight", {
+    Movement:AddSlider("JumpHeight", {
         Text = "Jump Height",
         Default = 7.2,
         Min = 1,
         Max = 50,
         Rounding = 1,
         Callback = function(v)
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    hum.JumpHeight = v
-                    print("JumpHeight set to:", v)
-                end
+            local char = self.LocalPlayer.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.JumpHeight = v
             end
         end
     })
@@ -62,77 +53,14 @@ function Player:Initialize(Tab)
     local Character = Tab:AddLeftGroupbox("Character")
     
     -- Fly toggle
-    local FlyToggle = Character:AddToggle("Fly", {
+    Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
         Callback = function(v)
-            self.flyEnabled = v
-            local char = LocalPlayer.Character
-            if not char then return end
-            local hum = char:FindFirstChild("Humanoid")
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if not hum or not root then return end
-            
-            if self.flyEnabled then
-                -- Остановим предыдущее соединение если есть
-                if self.flyConnection then
-                    self.flyConnection:Disconnect()
-                end
-                
-                -- Store references for closure
-                local flyChar = char
-                local flyRoot = root
-                local flyHum = hum
-                
-                local bodyGyro = Instance.new("BodyGyro")
-                bodyGyro.P = 10000
-                bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-                bodyGyro.CFrame = flyRoot.CFrame
-                bodyGyro.Parent = flyRoot
-                
-                local bodyVelocity = Instance.new("BodyVelocity")
-                bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-                bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                bodyVelocity.Parent = flyRoot
-                
-                self.flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                    if self.flyEnabled and flyChar and flyRoot and flyHum and flyChar.Parent then
-                        -- Align body to camera
-                        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
-                        
-                        -- Get movement input from humanoid
-                        local moveDir = flyHum.MoveVector
-                        local camDir = workspace.CurrentCamera.CFrame.LookVector
-                        local camRight = workspace.CurrentCamera.CFrame.RightVector
-                        local camUp = workspace.CurrentCamera.CFrame.UpVector
-                        
-                        -- Calculate movement relative to camera
-                        local moveVector = (camDir * moveDir.Z + camRight * moveDir.X) * self.flySpeed
-                        
-                        -- Handle vertical movement (Space to go up, Ctrl to go down)
-                        local verticalMove = Vector3.new(0, 0, 0)
-                        if flyHum.Jump then
-                            verticalMove = camUp * self.flySpeed
-                            flyHum.Jump = false
-                        end
-                        
-                        -- Apply velocity
-                        bodyVelocity.Velocity = moveVector + verticalMove
-                    end
-                end)
-                print("Fly enabled")
+            if v then
+                self:StartFly()
             else
-                if self.flyConnection then
-                    self.flyConnection:Disconnect()
-                    self.flyConnection = nil
-                end
-                if root then
-                    local bg = root:FindFirstChild("BodyGyro")
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if bg then bg:Destroy() end
-                    if bv then bv:Destroy() end
-                end
-                print("Fly disabled")
+                self:StopFly()
             end
         end
     })
@@ -150,125 +78,185 @@ function Player:Initialize(Tab)
     })
     
     -- Noclip toggle
-    local NoclipToggle = Character:AddToggle("Noclip", {
+    Character:AddToggle("Noclip", {
         Text = "Noclip",
         Default = false,
         Callback = function(v)
-            self.noclipEnabled = v
-            if self.noclipEnabled then
-                self.noclipConnection = game:GetService("RunService").Stepped:Connect(function()
-                    if self.noclipEnabled and LocalPlayer.Character then
-                        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                            if part:IsA("BasePart") then
-                                part.CanCollide = false
-                            end
-                        end
-                    end
-                end)
-                print("Noclip enabled")
+            if v then
+                self:StartNoclip()
             else
-                if self.noclipConnection then
-                    self.noclipConnection:Disconnect()
-                    self.noclipConnection = nil
-                end
-                if LocalPlayer.Character then
-                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
-                        end
-                    end
-                end
-                print("Noclip disabled")
+                self:StopNoclip()
             end
         end
     })
     
     -- Infinite Jump toggle
-    local InfJumpToggle = Character:AddToggle("InfiniteJump", {
+    Character:AddToggle("InfiniteJump", {
         Text = "Infinite Jump",
         Default = false,
         Callback = function(v)
-            self.infJumpEnabled = v
-            if self.infJumpEnabled then
-                if self.infJumpConnection then
-                    self.infJumpConnection:Disconnect()
-                end
-                self.infJumpConnection = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-                    if gameProcessed then return end
-                    if self.infJumpEnabled and input.KeyCode == Enum.KeyCode.Space then
-                        local char = LocalPlayer.Character
-                        if char then
-                            local hum = char:FindFirstChild("Humanoid")
-                            if hum then
-                                hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                            end
-                        end
-                    end
-                end)
-                print("Infinite Jump enabled")
+            if v then
+                self:StartInfJump()
             else
-                if self.infJumpConnection then
-                    self.infJumpConnection:Disconnect()
-                    self.infJumpConnection = nil
-                end
-                print("Infinite Jump disabled")
+                self:StopInfJump()
             end
         end
     })
     
-    -- Reset button
-    Movement:AddButton("Reset Movement", function()
-        local defaultWalkSpeed = 16
-        local defaultJumpHeight = 7.2
-        
-        -- Устанавливаем значения слайдеров
-        WalkSpeedSlider:SetValue(defaultWalkSpeed)
-        JumpHeightSlider:SetValue(defaultJumpHeight)
-        
-        -- Применяем значения к персонажу
-        local char = LocalPlayer.Character
-        if char then
-            local hum = char:FindFirstChild("Humanoid")
-            if hum then
-                hum.WalkSpeed = defaultWalkSpeed
-                hum.JumpHeight = defaultJumpHeight
-            end
-        end
-        print("Movement reset to default values")
-    end)
-    
     print("Player module loaded!")
-    
-    self.WalkSpeedSlider = WalkSpeedSlider
-    self.JumpHeightSlider = JumpHeightSlider
-    
     return self
 end
 
-function Player:Cleanup()
+function Player:StartFly()
+    self:StopFly()
+    
+    local char = self.LocalPlayer.Character
+    if not char then return end
+    
+    local hum = char:FindFirstChild("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not root then return end
+    
+    -- Disable gravity
+    hum.PlatformStand = true
+    
+    -- Create physics objects
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bv.Parent = root
+    
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+    bg.D = 500
+    bg.Parent = root
+    
+    self.flyActive = true
+    
+    self.flyConnection = RunService.RenderStepped:Connect(function()
+        if not self.flyActive or not char or not char.Parent then
+            self:StopFly()
+            return
+        end
+        
+        local currentRoot = char:FindFirstChild("HumanoidRootPart")
+        local currentHum = char:FindFirstChild("Humanoid")
+        
+        if not currentRoot or not currentHum then
+            self:StopFly()
+            return
+        end
+        
+        local cam = workspace.CurrentCamera
+        bg.CFrame = cam.CFrame
+        
+        -- Get movement
+        local moveDir = currentHum.MoveVector
+        local moveVel = (cam.CFrame.LookVector * moveDir.Z + cam.CFrame.RightVector * moveDir.X) * self.flySpeed
+        
+        -- Vertical movement
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveVel = moveVel + cam.CFrame.UpVector * self.flySpeed
+        elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            moveVel = moveVel - cam.CFrame.UpVector * self.flySpeed
+        end
+        
+        bv.Velocity = moveVel
+    end)
+    
+    print("Fly enabled")
+end
+
+function Player:StopFly()
+    self.flyActive = false
+    
     if self.flyConnection then
         self.flyConnection:Disconnect()
+        self.flyConnection = nil
     end
-    if self.noclipConnection then
-        self.noclipConnection:Disconnect()
-    end
-    if self.infJumpConnection then
-        self.infJumpConnection:Disconnect()
-    end
-    if self.LocalPlayer.Character then
-        local root = self.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    local char = self.LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then hum.PlatformStand = false end
+        
+        local root = char:FindFirstChild("HumanoidRootPart")
         if root then
-            local bg = root:FindFirstChild("BodyGyro")
-            local bv = root:FindFirstChild("BodyVelocity")
-            if bg then bg:Destroy() end
-            if bv then bv:Destroy() end
+            for _, obj in pairs(root:GetChildren()) do
+                if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
+                    obj:Destroy()
+                end
+            end
+        end
+    end
+    
+    print("Fly disabled")
+end
+
+function Player:StartNoclip()
+    local conn
+    conn = RunService.Stepped:Connect(function()
+        if not self.LocalPlayer.Character then
+            conn:Disconnect()
+            return
         end
         for _, part in pairs(self.LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+    table.insert(self.Connections, conn)
+    print("Noclip enabled")
+end
+
+function Player:StopNoclip()
+    local char = self.LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
             end
         end
     end
+    print("Noclip disabled")
+end
+
+function Player:StartInfJump()
+    local conn
+    conn = UserInputService.InputBegan:Connect(function(input, gp)
+        if gp or input.KeyCode ~= Enum.KeyCode.Space then return end
+        local char = self.LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+    table.insert(self.Connections, conn)
+    print("Infinite Jump enabled")
+end
+
+function Player:StopInfJump()
+    print("Infinite Jump disabled")
+end
+
+function Player:Cleanup()
+    self:StopFly()
+    self:StopNoclip()
+    
+    for _, conn in pairs(self.Connections) do
+        if conn then conn:Disconnect() end
+    end
+    self.Connections = {}
+    
+    local char = self.LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChild("Humanoid")
+        if hum then hum.PlatformStand = false end
+        
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = true end
+        end
+    end
+    
     print("Player cleanup!")
 end
 

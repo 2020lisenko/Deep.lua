@@ -9,10 +9,8 @@ function Visuals:Initialize(Tab)
     end
     
     self.VisualsEnv = getgenv().DeepVisuals
-    
     self.Lighting = game:GetService("Lighting")
-    self.Players = game:GetService("Players")
-    self.LocalPlayer = self.Players.LocalPlayer
+    self.LocalPlayer = game:GetService("Players").LocalPlayer
     
     self.OriginalValues = {
         Brightness = self.Lighting.Brightness,
@@ -64,13 +62,14 @@ function Visuals:LoadDefaultSettings()
         SkyboxId = "",
         ThirdPerson = false,
         ThirdPersonDistance = 10,
-        ScreenStretch = false,
-        ScreenStretchAmount = 1.0
+        FOV = false,
+        FOVAmount = 1.0
     }
 end
 
 function Visuals:ApplyFullBright()
-    if self.VisualsEnv.Settings.FullBright then
+    local s = self.VisualsEnv.Settings
+    if s.FullBright then
         self.Lighting.Brightness = 2
         self.Lighting.ClockTime = 14
         self.Lighting.FogEnd = 100000
@@ -80,15 +79,9 @@ function Visuals:ApplyFullBright()
         self.Lighting.EnvironmentDiffuseScale = 1
         self.Lighting.EnvironmentSpecularScale = 1
     else
-        self.Lighting.Brightness = self.OriginalValues.Brightness
-        self.Lighting.ClockTime = self.OriginalValues.ClockTime
-        self.Lighting.FogEnd = self.OriginalValues.FogEnd
-        self.Lighting.GlobalShadows = self.OriginalValues.GlobalShadows
-        self.Lighting.OutdoorAmbient = self.OriginalValues.OutdoorAmbient
-        self.Lighting.Ambient = self.OriginalValues.Ambient
-        self.Lighting.EnvironmentDiffuseScale = self.OriginalValues.EnvironmentDiffuseScale
-        self.Lighting.EnvironmentSpecularScale = self.OriginalValues.EnvironmentSpecularScale
-        
+        for k, v in pairs(self.OriginalValues) do
+            self.Lighting[k] = v
+        end
         self:ApplyCustomTime()
         self:ApplyCustomAmbient()
         self:ApplyCustomOutdoorAmbient()
@@ -99,13 +92,14 @@ function Visuals:ApplyFullBright()
 end
 
 function Visuals:ApplyNoFog()
-    if self.VisualsEnv.Settings.NoFog then
+    local s = self.VisualsEnv.Settings
+    if s.NoFog then
         self.Lighting.FogEnd = 100000
         self.Lighting.FogStart = 100000
-    elseif self.VisualsEnv.Settings.CustomFog then
-        self.Lighting.FogColor = self.VisualsEnv.Settings.FogColor
-        self.Lighting.FogStart = self.VisualsEnv.Settings.FogStart
-        self.Lighting.FogEnd = self.VisualsEnv.Settings.FogEnd
+    elseif s.CustomFog then
+        self.Lighting.FogColor = s.FogColor
+        self.Lighting.FogStart = s.FogStart
+        self.Lighting.FogEnd = s.FogEnd
     else
         self.Lighting.FogEnd = self.OriginalValues.FogEnd
         self.Lighting.FogStart = self.OriginalValues.FogStart
@@ -113,9 +107,10 @@ function Visuals:ApplyNoFog()
 end
 
 function Visuals:ApplyCustomShadows()
-    if self.VisualsEnv.Settings.CustomShadows then
+    local s = self.VisualsEnv.Settings
+    if s.CustomShadows then
         self.Lighting.GlobalShadows = true
-        self.Lighting.ShadowSoftness = self.VisualsEnv.Settings.ShadowSoftness
+        self.Lighting.ShadowSoftness = s.ShadowSoftness
     else
         self.Lighting.GlobalShadows = self.OriginalValues.GlobalShadows
         self.Lighting.ShadowSoftness = self.OriginalValues.ShadowSoftness
@@ -161,16 +156,17 @@ function Visuals:ApplyCustomEnvironmentScale()
 end
 
 function Visuals:ApplySkybox()
-    if self.VisualsEnv.Settings.SkyboxEnabled and self.VisualsEnv.Settings.SkyboxId ~= "" then
+    local s = self.VisualsEnv.Settings
+    if s.SkyboxEnabled and s.SkyboxId ~= "" then
         self:RemoveSkybox()
         local sky = Instance.new("Sky")
         sky.Name = "DeepCustomSky"
-        sky.SkyboxBk = self.VisualsEnv.Settings.SkyboxId
-        sky.SkyboxDn = self.VisualsEnv.Settings.SkyboxId
-        sky.SkyboxFt = self.VisualsEnv.Settings.SkyboxId
-        sky.SkyboxLf = self.VisualsEnv.Settings.SkyboxId
-        sky.SkyboxRt = self.VisualsEnv.Settings.SkyboxId
-        sky.SkyboxUp = self.VisualsEnv.Settings.SkyboxId
+        sky.SkyboxBk = s.SkyboxId
+        sky.SkyboxDn = s.SkyboxId
+        sky.SkyboxFt = s.SkyboxId
+        sky.SkyboxLf = s.SkyboxId
+        sky.SkyboxRt = s.SkyboxId
+        sky.SkyboxUp = s.SkyboxId
         sky.Parent = self.Lighting
     else
         self:RemoveSkybox()
@@ -186,23 +182,22 @@ function Visuals:RemoveSkybox()
 end
 
 function Visuals:ApplyThirdPerson()
-    if self.VisualsEnv.Settings.ThirdPerson then
+    local s = self.VisualsEnv.Settings
+    if s.ThirdPerson then
         self.LocalPlayer.CameraMinZoomDistance = 0.5
-        self.LocalPlayer.CameraMaxZoomDistance = self.VisualsEnv.Settings.ThirdPersonDistance
+        self.LocalPlayer.CameraMaxZoomDistance = s.ThirdPersonDistance
     else
         self.LocalPlayer.CameraMinZoomDistance = 0.5
         self.LocalPlayer.CameraMaxZoomDistance = 10
     end
 end
 
-function Visuals:ApplyScreenStretch()
-    local camera = workspace.CurrentCamera
-    if self.VisualsEnv.Settings.ScreenStretch then
-        local amount = self.VisualsEnv.Settings.ScreenStretchAmount
-        local fov = 70 * amount
-        camera.FieldOfView = math.clamp(fov, 1, 120)
+function Visuals:ApplyFOV()
+    local cam = workspace.CurrentCamera
+    if self.VisualsEnv.Settings.FOV then
+        cam.FieldOfView = 70 * self.VisualsEnv.Settings.FOVAmount
     else
-        camera.FieldOfView = 70
+        cam.FieldOfView = 70
     end
 end
 
@@ -210,16 +205,10 @@ function Visuals:RestoreAll()
     for k, v in pairs(self.OriginalValues) do
         self.Lighting[k] = v
     end
-    
     self:RemoveSkybox()
-    
     self.LocalPlayer.CameraMinZoomDistance = 0.5
     self.LocalPlayer.CameraMaxZoomDistance = 10
-    
     workspace.CurrentCamera.FieldOfView = 70
-    
-    self:LoadDefaultSettings()
-    
     print("All visuals restored to defaults!")
 end
 
@@ -228,11 +217,10 @@ function Visuals:CreateUI(Tab)
     local Environment = Tab:AddRightGroupbox("Environment")
     local Misc = Tab:AddLeftGroupbox("Misc")
     
-    -- Lighting Group
     Lighting:AddToggle("FullBright", {
         Text = "Full Bright",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.FullBright = v
             self:ApplyFullBright()
         end
@@ -241,7 +229,7 @@ function Visuals:CreateUI(Tab)
     Lighting:AddToggle("NoFog", {
         Text = "No Fog",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.NoFog = v
             self:ApplyNoFog()
         end
@@ -250,7 +238,7 @@ function Visuals:CreateUI(Tab)
     Lighting:AddToggle("CustomTime", {
         Text = "Custom Time",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.CustomTime = v
             self:ApplyCustomTime()
         end
@@ -262,7 +250,7 @@ function Visuals:CreateUI(Tab)
         Min = 0,
         Max = 24,
         Rounding = 1,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.CustomTimeValue = v
             self:ApplyCustomTime()
         end
@@ -271,7 +259,7 @@ function Visuals:CreateUI(Tab)
     Lighting:AddToggle("CustomAmbient", {
         Text = "Custom Ambient",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.CustomAmbient = v
             self:ApplyCustomAmbient()
         end
@@ -279,80 +267,16 @@ function Visuals:CreateUI(Tab)
     
     Lighting:AddLabel("Ambient Color"):AddColorPicker("AmbientColor", {
         Default = Color3.fromRGB(255, 255, 255),
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.AmbientColor = v
             self:ApplyCustomAmbient()
         end
     })
     
-    Lighting:AddToggle("CustomOutdoorAmbient", {
-        Text = "Custom Outdoor Ambient",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.CustomOutdoorAmbient = v
-            self:ApplyCustomOutdoorAmbient()
-        end
-    })
-    
-    Lighting:AddLabel("Outdoor Ambient"):AddColorPicker("OutdoorAmbientColor", {
-        Default = Color3.fromRGB(128, 128, 128),
-        Callback = function(v) 
-            self.VisualsEnv.Settings.OutdoorAmbientColor = v
-            self:ApplyCustomOutdoorAmbient()
-        end
-    })
-    
-    Lighting:AddToggle("CustomExposure", {
-        Text = "Custom Exposure",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.CustomExposure = v
-            self:ApplyCustomExposure()
-        end
-    })
-    
-    Lighting:AddSlider("ExposureValue", {
-        Text = "Exposure",
-        Default = 0,
-        Min = -5,
-        Max = 5,
-        Rounding = 1,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.ExposureValue = v
-            self:ApplyCustomExposure()
-        end
-    })
-    
-    Lighting:AddToggle("CustomColorShift", {
-        Text = "Custom Color Shift",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.CustomColorShift = v
-            self:ApplyCustomColorShift()
-        end
-    })
-    
-    Lighting:AddLabel("Color Top"):AddColorPicker("ColorShiftTop", {
-        Default = Color3.fromRGB(255, 255, 255),
-        Callback = function(v) 
-            self.VisualsEnv.Settings.ColorShiftTop = v
-            self:ApplyCustomColorShift()
-        end
-    })
-    
-    Lighting:AddLabel("Color Bottom"):AddColorPicker("ColorShiftBottom", {
-        Default = Color3.fromRGB(0, 0, 0),
-        Callback = function(v) 
-            self.VisualsEnv.Settings.ColorShiftBottom = v
-            self:ApplyCustomColorShift()
-        end
-    })
-    
-    -- Environment Group
     Environment:AddToggle("CustomFog", {
         Text = "Custom Fog",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.CustomFog = v
             self:ApplyNoFog()
         end
@@ -360,7 +284,7 @@ function Visuals:CreateUI(Tab)
     
     Environment:AddLabel("Fog Color"):AddColorPicker("FogColor", {
         Default = Color3.fromRGB(192, 192, 192),
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.FogColor = v
             self:ApplyNoFog()
         end
@@ -372,7 +296,7 @@ function Visuals:CreateUI(Tab)
         Min = 0,
         Max = 100000,
         Rounding = 0,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.FogStart = v
             self:ApplyNoFog()
         end
@@ -384,7 +308,7 @@ function Visuals:CreateUI(Tab)
         Min = 0,
         Max = 100000,
         Rounding = 0,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.FogEnd = v
             self:ApplyNoFog()
         end
@@ -393,7 +317,7 @@ function Visuals:CreateUI(Tab)
     Environment:AddToggle("CustomShadows", {
         Text = "Custom Shadows",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.CustomShadows = v
             self:ApplyCustomShadows()
         end
@@ -405,73 +329,16 @@ function Visuals:CreateUI(Tab)
         Min = 0,
         Max = 1,
         Rounding = 2,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.ShadowSoftness = v
             self:ApplyCustomShadows()
         end
     })
     
-    Environment:AddToggle("CustomEnvironmentScale", {
-        Text = "Custom Environment Scale",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.CustomEnvironmentScale = v
-            self:ApplyCustomEnvironmentScale()
-        end
-    })
-    
-    Environment:AddSlider("EnvironmentDiffuseScale", {
-        Text = "Diffuse Scale",
-        Default = 1,
-        Min = 0,
-        Max = 5,
-        Rounding = 2,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.EnvironmentDiffuseScale = v
-            self:ApplyCustomEnvironmentScale()
-        end
-    })
-    
-    Environment:AddSlider("EnvironmentSpecularScale", {
-        Text = "Specular Scale",
-        Default = 1,
-        Min = 0,
-        Max = 5,
-        Rounding = 2,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.EnvironmentSpecularScale = v
-            self:ApplyCustomEnvironmentScale()
-        end
-    })
-    
-    Environment:AddToggle("SkyboxEnabled", {
-        Text = "Custom Skybox",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.SkyboxEnabled = v
-            self:ApplySkybox()
-        end
-    })
-    
-    Environment:AddDropdown("SkyboxId", {
-        Values = {
-            "rbxassetid://123456789",
-            "rbxassetid://987654321",
-            "rbxassetid://111111111"
-        },
-        Default = "",
-        Text = "Skybox ID",
-        Callback = function(v) 
-            self.VisualsEnv.Settings.SkyboxId = v
-            self:ApplySkybox()
-        end
-    })
-    
-    -- Misc Group
     Misc:AddToggle("ThirdPerson", {
         Text = "Third Person",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.ThirdPerson = v
             self:ApplyThirdPerson()
         end
@@ -483,7 +350,7 @@ function Visuals:CreateUI(Tab)
         Min = 1,
         Max = 100,
         Rounding = 1,
-        Callback = function(v) 
+        Callback = function(v)
             self.VisualsEnv.Settings.ThirdPersonDistance = v
             self:ApplyThirdPerson()
         end
@@ -491,24 +358,24 @@ function Visuals:CreateUI(Tab)
     
     Misc:AddDivider()
     
-    Misc:AddToggle("ScreenStretch", {
-        Text = "Screen Stretch",
+    Misc:AddToggle("FOV", {
+        Text = "FOV",
         Default = false,
         Callback = function(v)
-            self.VisualsEnv.Settings.ScreenStretch = v
-            self:ApplyScreenStretch()
+            self.VisualsEnv.Settings.FOV = v
+            self:ApplyFOV()
         end
     })
     
-    Misc:AddSlider("ScreenStretchAmount", {
-        Text = "Stretch Amount",
+    Misc:AddSlider("FOVAmount", {
+        Text = "FOV Scale",
         Default = 1.0,
         Min = 0.5,
         Max = 3.0,
         Rounding = 2,
         Callback = function(v)
-            self.VisualsEnv.Settings.ScreenStretchAmount = v
-            self:ApplyScreenStretch()
+            self.VisualsEnv.Settings.FOVAmount = v
+            self:ApplyFOV()
         end
     })
     
