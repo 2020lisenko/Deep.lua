@@ -60,6 +60,7 @@ local Tabs = {
     Aimbot = Window:AddTab("Aimbot", "crosshair"),
     ESP = Window:AddTab("ESP", "eye"),
     Visuals = Window:AddTab("Visuals", "palette"),
+    Player = Window:AddTab("Player", "user"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -77,6 +78,7 @@ ThemeManager:ApplyToTab(Tabs["UI Settings"])
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
 local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
+local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
 
 -- UI Settings
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
@@ -117,8 +119,6 @@ MenuGroup:AddDropdown("DPIDropdown", {
     end,
 })
 
-
-
 MenuGroup:AddSlider("UICornerSlider", {
     Text = "Corner Radius",
     Default = Library.CornerRadius,
@@ -142,10 +142,11 @@ MenuGroup:AddButton("Unload", function()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
     getgenv().DeepVisuals = nil
+    getgenv().DeepPlayer = nil
     Library:Unload()
 end)
 
--- Система скрытия меню из оригинального кода
+-- Система скрытия меню
 Library.ToggleKeybind = Options.MenuKeybind
 
 local CustomTheme = {
@@ -182,4 +183,5 @@ Library:OnUnload(function()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
     getgenv().DeepVisuals = nil
+    getgenv().DeepPlayer = nil
 end)
