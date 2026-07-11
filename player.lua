@@ -82,31 +82,41 @@ Character:AddToggle("Fly", {
                 
                 -- Рассчитываем скорость на основе направления камеры
                 local velocity = Vector3.zero
+                local moving = false
                 
-                -- Вперед/назад (W/S)
+                -- Вперед/назад (W/S) - летит туда куда смотрит камера
                 if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                     velocity = velocity + cameraCFrame.LookVector * speed
+                    moving = true
                 end
                 if UserInputService:IsKeyDown(Enum.KeyCode.S) then
                     velocity = velocity - cameraCFrame.LookVector * speed
+                    moving = true
                 end
                 
                 -- Влево/вправо (A/D)
                 if UserInputService:IsKeyDown(Enum.KeyCode.A) then
                     velocity = velocity - cameraCFrame.RightVector * speed
+                    moving = true
                 end
                 if UserInputService:IsKeyDown(Enum.KeyCode.D) then
                     velocity = velocity + cameraCFrame.RightVector * speed
+                    moving = true
                 end
                 
-                -- Вверх (Пробел)
+                -- Дополнительное управление высотой
                 if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                     velocity = velocity + Vector3.new(0, speed, 0)
+                    moving = true
                 end
-                
-                -- Вниз (Shift или Ctrl)
                 if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
                     velocity = velocity - Vector3.new(0, speed, 0)
+                    moving = true
+                end
+                
+                -- Если ни одна клавиша не нажата - останавливаемся
+                if not moving then
+                    velocity = Vector3.zero
                 end
                 
                 -- Применяем скорость
@@ -114,7 +124,7 @@ Character:AddToggle("Fly", {
                     bodyVelocity.Velocity = velocity
                 end
             end)
-            print("Fly enabled - WASD: Move in camera direction, Space: Up, Shift/Ctrl: Down")
+            print("Fly enabled - W: Forward (camera direction), S: Backward, Space: Up, Shift/Ctrl: Down")
         else
             -- Выключаем полет
             if flyConnection then
