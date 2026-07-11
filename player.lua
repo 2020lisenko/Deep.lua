@@ -19,11 +19,6 @@ function Player:Initialize(Tab)
     self.SpeedConnection = nil
     self.JumpConnection = nil
     
-    self.OriginalValues = {
-        WalkSpeed = 16,
-        JumpPower = 50
-    }
-    
     self:LoadDefaultSettings()
     self:CreateUI(Tab)
     
@@ -38,8 +33,7 @@ function Player:LoadDefaultSettings()
         JumpPower = 50,
         FlyEnabled = false,
         FlySpeed = 50,
-        NoClip = false,
-        AntiAFK = false
+        NoClip = false
     }
 end
 
@@ -51,7 +45,7 @@ function Player:ApplyWalkSpeed()
         if self.LocalPlayer.Character then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                humanoid.WalkSpeed = self.OriginalValues.WalkSpeed
+                humanoid.WalkSpeed = 16
             end
         end
     end
@@ -61,9 +55,9 @@ function Player:StartSpeedLoop()
     if self.SpeedConnection then return end
     
     self.SpeedConnection = self.RunService.Heartbeat:Connect(function()
-        if self.LocalPlayer.Character then
+        if self.LocalPlayer.Character and self.PlayerEnv.Settings.CustomWalkSpeed then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid and self.PlayerEnv.Settings.CustomWalkSpeed then
+            if humanoid then
                 humanoid.WalkSpeed = self.PlayerEnv.Settings.WalkSpeed
             end
         end
@@ -85,7 +79,7 @@ function Player:ApplyJumpPower()
         if self.LocalPlayer.Character then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
             if humanoid then
-                humanoid.JumpPower = self.OriginalValues.JumpPower
+                humanoid.JumpPower = 50
             end
         end
     end
@@ -95,9 +89,9 @@ function Player:StartJumpLoop()
     if self.JumpConnection then return end
     
     self.JumpConnection = self.RunService.Heartbeat:Connect(function()
-        if self.LocalPlayer.Character then
+        if self.LocalPlayer.Character and self.PlayerEnv.Settings.CustomJumpPower then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid and self.PlayerEnv.Settings.CustomJumpPower then
+            if humanoid then
                 humanoid.JumpPower = self.PlayerEnv.Settings.JumpPower
             end
         end
@@ -125,8 +119,9 @@ function Player:StartFly()
     local character = self.LocalPlayer.Character
     if not character then return end
     
-    local humanoid = character:WaitForChild("Humanoid")
-    local rootPart = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
     
     humanoid.PlatformStand = true
     
@@ -175,37 +170,11 @@ function Player:StopFly()
 end
 
 function Player:ApplyNoClip()
-    if self.PlayerEnv.Settings.NoClip then
-        self:StartNoClip()
-    else
-        self:StopNoClip()
-    end
-end
-
-function Player:StartNoClip()
-    local character = self.LocalPlayer.Character
-    if not character then return end
+    if not self.LocalPlayer.Character then return end
     
-    for _, part in ipairs(character:GetDescendants()) do
+    for _, part in ipairs(self.LocalPlayer.Character:GetDescendants()) do
         if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-    
-    character.DescendantAdded:Connect(function(child)
-        if child:IsA("BasePart") then
-            child.CanCollide = false
-        end
-    end)
-end
-
-function Player:StopNoClip()
-    local character = self.LocalPlayer.Character
-    if not character then return end
-    
-    for _, part in ipairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = true
+            part.CanCollide = not self.PlayerEnv.Settings.NoClip
         end
     end
 end
@@ -215,11 +184,16 @@ function Player:RestoreAll()
     self:StopSpeedLoop()
     self:StopJumpLoop()
     
+    self.PlayerEnv.Settings.CustomWalkSpeed = false
+    self.PlayerEnv.Settings.CustomJumpPower = false
+    self.PlayerEnv.Settings.FlyEnabled = false
+    self.PlayerEnv.Settings.NoClip = false
+    
     if self.LocalPlayer.Character then
         local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if humanoid then
-            humanoid.WalkSpeed = self.OriginalValues.WalkSpeed
-            humanoid.JumpPower = self.OriginalValues.JumpPower
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
             humanoid.PlatformStand = false
         end
         
@@ -230,8 +204,7 @@ function Player:RestoreAll()
         end
     end
     
-    self:LoadDefaultSettings()
-    print("Player settings restored to defaults!")
+    print("Player settings restored!")
 end
 
 function Player:CreateUI(Tab)
@@ -239,7 +212,6 @@ function Player:CreateUI(Tab)
     local Fly = Tab:AddRightGroupbox("Fly")
     local Other = Tab:AddLeftGroupbox("Other")
     
-    -- Movement Group
     Movement:AddToggle("CustomWalkSpeed", {
         Text = "Custom Walk Speed",
         Default = false,
@@ -280,7 +252,6 @@ function Player:CreateUI(Tab)
         end
     })
     
-    -- Fly Group
     Fly:AddToggle("FlyEnabled", {
         Text = "Fly",
         Default = false,
@@ -301,12 +272,8 @@ function Player:CreateUI(Tab)
         end
     })
     
-    Fly:AddLabel("Fly Controls:")
-    Fly:AddLabel("W/A/S/D - Move")
-    Fly:AddLabel("Space - Up")
-    Fly:AddLabel("Shift - Down")
+    Fly:AddLabel("Controls: WASD/Space/Shift")
     
-    -- Other Group
     Other:AddToggle("NoClip", {
         Text = "No Clip",
         Default = false,
