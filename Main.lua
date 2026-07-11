@@ -74,6 +74,7 @@ ThemeManager:ApplyToTab(Tabs["UI Settings"])
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
 
+-- UI Settings с системой скрытия меню из оригинального кода
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -82,6 +83,45 @@ MenuGroup:AddToggle("KeybindMenuOpen", {
     Callback = function(value)
         Library.KeybindFrame.Visible = value
     end,
+})
+
+MenuGroup:AddToggle("ShowCustomCursor", {
+    Text = "Custom Cursor",
+    Default = Library.ShowCustomCursor,
+    Callback = function(Value)
+        Library.ShowCustomCursor = Value
+    end,
+})
+
+MenuGroup:AddDropdown("NotificationSide", {
+    Values = {"Left", "Right"},
+    Default = "Right",
+    Text = "Notification Side",
+    Callback = function(Value)
+        Library:SetNotifySide(Value)
+    end,
+})
+
+MenuGroup:AddDropdown("DPIDropdown", {
+    Values = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
+    Default = "100%",
+    Text = "DPI Scale",
+    Callback = function(Value)
+        Value = Value:gsub("%%", "")
+        local DPI = tonumber(Value)
+        Library:SetDPIScale(DPI)
+    end,
+})
+
+MenuGroup:AddSlider("UICornerSlider", {
+    Text = "Corner Radius",
+    Default = Library.CornerRadius,
+    Min = 0,
+    Max = 20,
+    Rounding = 0,
+    Callback = function(value)
+        Window:SetCornerRadius(value)
+    end
 })
 
 MenuGroup:AddDivider()
@@ -98,21 +138,34 @@ MenuGroup:AddButton("Unload", function()
     Library:Unload()
 end)
 
--- Установка клавиши меню с задержкой
-task.wait(0.5)
-Library.ToggleKeybind = Options.MenuKeybind or Enum.KeyCode.RightShift
+-- Система скрытия меню из оригинального кода
+Library.ToggleKeybind = Options.MenuKeybind
 
--- Если все еще не работает, добавьте принудительно:
-if not Library.ToggleKeybind then
-    Library.ToggleKeybind = Enum.KeyCode.RightShift
+local CustomTheme = {
+    Accent = Color3.fromRGB(0, 150, 255),
+    AccentColor2 = Color3.fromRGB(255, 255, 255),
+    Background = Color3.fromRGB(10, 10, 20),
+    BackgroundColor2 = Color3.fromRGB(20, 20, 35),
+    CustomFont = "Gotham",
+    ElementBorder = Color3.fromRGB(0, 150, 255),
+    FontColor = Color3.fromRGB(255, 255, 255),
+    FontColorSecondary = Color3.fromRGB(150, 150, 200),
+    NavBarColor = Color3.fromRGB(5, 5, 15),
+    NavBarAccentColor = Color3.fromRGB(0, 150, 255),
+    Red = Color3.fromRGB(255, 50, 50),
+    RiskyColor = Color3.fromRGB(255, 50, 50),
+    TabColor = Color3.fromRGB(15, 15, 25),
+    TabTextColor = Color3.fromRGB(200, 200, 255),
+    TabTextColorSelected = Color3.fromRGB(0, 150, 255),
+}
+
+for k, v in next, CustomTheme do
+    Library.Scheme[k] = v
 end
 
--- Ручное управление через UserInputService (гарантированно работает)
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        Library.KeybindFrame.Visible = not Library.KeybindFrame.Visible
-    end
+-- Метод UpdateColorsUsingScheme может отсутствовать, используем pcall
+pcall(function()
+    Library:UpdateColorsUsingScheme()
 end)
 
 SaveManager:LoadAutoloadConfig()
