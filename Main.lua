@@ -1,32 +1,55 @@
-local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+-- Main.lua
+local originalRepo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local myRepo = "https://raw.githubusercontent.com/2020lisenko/Deep.lua/refs/heads/main/"
 
--- Загрузка зависимостей
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
-local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
-local ModuleLoader = loadstring(game:HttpGet(repo .. "modules/ModuleLoader.lua"))()
+-- Загружаем библиотеки из оригинального репозитория
+local Library = loadstring(game:HttpGet(originalRepo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(originalRepo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(originalRepo .. "addons/SaveManager.lua"))()
 
--- Инициализация Library
-local Options = Library.Options
-local Toggles = Library.Toggles
+-- ModuleLoader для загрузки ваших модулей
+local ModuleLoader = {
+    Repo = myRepo,
+    LoadedModules = {}
+}
 
-Library.ForceCheckbox = false
-Library.ShowToggleFrameInKeybinds = true
+function ModuleLoader:LoadModule(moduleName, ...)
+    local success, module = pcall(function()
+        return loadstring(game:HttpGet(self.Repo .. moduleName:lower() .. ".lua"))()
+    end)
+    
+    if success and module then
+        self.LoadedModules[moduleName] = module:Initialize(...)
+        return self.LoadedModules[moduleName]
+    else
+        warn("Failed to load module: " .. moduleName, module)
+        return nil
+    end
+end
+
+function ModuleLoader:CleanupAll()
+    for name, module in pairs(self.LoadedModules) do
+        if module and module.Cleanup then
+            pcall(module.Cleanup, module)
+        end
+    end
+    self.LoadedModules = {}
+end
 
 -- Создание окна
 local Window = Library:CreateWindow({
-	Title = "Deep.lua",
-	Footer = "version: 1.0 | by deivid",
-	Icon = 95816097006870,
-	NotifySide = "Right",
-	ShowCustomCursor = true,
+    Title = "Deep.lua",
+    Footer = "version: 1.0 | by deivid",
+    Icon = 95816097006870,
+    NotifySide = "Right",
+    ShowCustomCursor = true,
 })
 
--- Создание вкладок
+-- Вкладки
 local Tabs = {
-	Aimbot = Window:AddTab("Aimbot", "crosshair"),
-	ESP = Window:AddTab("ESP", "eye"),
-	["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+    Aimbot = Window:AddTab("Aimbot", "crosshair"),
+    ESP = Window:AddTab("ESP", "eye"),
+    ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
 -- Настройка ThemeManager и SaveManager
@@ -43,39 +66,46 @@ ThemeManager:ApplyToTab(Tabs["UI Settings"])
 -- Загрузка модулей
 local AimbotModule = ModuleLoader:LoadModule("Aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("ESP", Tabs.ESP)
-local UIModule = ModuleLoader:LoadModule("UISettings", Tabs["UI Settings"], Library, Window)
 
--- Тема по умолчанию
+-- Настройки UI
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
+
+MenuGroup:AddToggle("KeybindMenuOpen", {
+    Default = Library.KeybindFrame.Visible,
+    Text = "Open Keybind Menu",
+    Callback = function(value)
+        Library.KeybindFrame.Visible = value
+    end,
+})
+
+MenuGroup:AddButton("Unload", function()
+    if ESPModule then ESPModule:Cleanup() end
+    if AimbotModule then AimbotModule:Cleanup() end
+    ModuleLoader:CleanupAll()
+    Library:Unload()
+    getgenv().Deep = nil
+    getgenv().DeepESP = nil
+end)
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+-- Тема
 local CustomTheme = {
-	Accent = Color3.fromRGB(0, 150, 255),
-	AccentColor2 = Color3.fromRGB(255, 255, 255),
-	Background = Color3.fromRGB(10, 10, 20),
-	BackgroundColor2 = Color3.fromRGB(20, 20, 35),
-	CustomFont = "Gotham",
-	ElementBorder = Color3.fromRGB(0, 150, 255),
-	FontColor = Color3.fromRGB(255, 255, 255),
-	FontColorSecondary = Color3.fromRGB(150, 150, 200),
-	NavBarColor = Color3.fromRGB(5, 5, 15),
-	NavBarAccentColor = Color3.fromRGB(0, 150, 255),
-	Red = Color3.fromRGB(255, 50, 50),
-	RiskyColor = Color3.fromRGB(255, 50, 50),
-	TabColor = Color3.fromRGB(15, 15, 25),
-	TabTextColor = Color3.fromRGB(200, 200, 255),
-	TabTextColorSelected = Color3.fromRGB(0, 150, 255),
+    Accent = Color3.fromRGB(0, 150, 255),
+    Background = Color3.fromRGB(10, 10, 20),
+    -- ... остальные цвета
 }
 
 for k, v in next, CustomTheme do
-	Library.Scheme[k] = v
+    Library.Scheme[k] = v
 end
 
 Library:UpdateColorsUsingScheme()
 SaveManager:LoadAutoloadConfig()
 
--- Обработка выгрузки
 Library:OnUnload(function()
-	print("Deep.lua unloaded!")
-	if ESPModule then ESPModule:Cleanup() end
-	if AimbotModule then AimbotModule:Cleanup() end
-	getgenv().Deep = nil
-	getgenv().DeepESP = nil
+    print("Deep.lua unloaded!")
+    ModuleLoader:CleanupAll()
+    getgenv().Deep = nil
+    getgenv().DeepESP = nil
 end)
