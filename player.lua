@@ -3,12 +3,26 @@ local Player = {}
 function Player:Initialize(Tab)
     print("Player module loading...")
     
+    -- Проверяем, что Tab существует
+    if not Tab then
+        warn("Tab is nil!")
+        return
+    end
+    
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
     local UserInputService = game:GetService("UserInputService")
     local RunService = game:GetService("RunService")
     
+    -- Создаем группы (groupbox)
     local Movement = Tab:AddLeftGroupbox("Movement")
+    local Character = Tab:AddLeftGroupbox("Character")
+    
+    -- Проверяем, что группы создались
+    if not Movement or not Character then
+        warn("Failed to create groupboxes!")
+        return
+    end
     
     -- WalkSpeed
     local WalkSpeedSlider = Movement:AddSlider("WalkSpeed", {
@@ -49,15 +63,13 @@ function Player:Initialize(Tab)
         end
     })
     
-    local Character = Tab:AddLeftGroupbox("Character")
-    
     -- Fly
     local flyConnection
     local flyEnabled = false
     local bodyGyro
     local bodyVelocity
     
-    Character:AddToggle("Fly", {
+    local FlyToggle = Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
         Callback = function(v)
@@ -81,11 +93,9 @@ function Player:Initialize(Tab)
             if flyEnabled then
                 if flyConnection then flyConnection:Disconnect() end
                 
-                -- Удаляем старые объекты если есть
                 if bodyGyro then bodyGyro:Destroy() end
                 if bodyVelocity then bodyVelocity:Destroy() end
                 
-                -- Создаем новые объекты
                 bodyGyro = Instance.new("BodyGyro")
                 bodyGyro.P = 9e4
                 bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
@@ -97,15 +107,16 @@ function Player:Initialize(Tab)
                 bodyVelocity.Velocity = Vector3.zero
                 bodyVelocity.Parent = root
                 
-                -- Отключаем гравитацию для персонажа
                 hum.PlatformStand = true
                 
-                local speed = 50 -- Базовая скорость полета
+                local speed = 50
                 
                 flyConnection = RunService.Heartbeat:Connect(function()
                     if not flyEnabled or not char or not char.Parent or not root or not root.Parent then 
-                        -- Автоматически выключаем полет если персонаж исчез
                         flyEnabled = false
+                        if FlyToggle then
+                            FlyToggle:SetValue(false)
+                        end
                         if hum and hum.Parent then
                             hum.PlatformStand = false
                         end
@@ -124,20 +135,16 @@ function Player:Initialize(Tab)
                         return 
                     end
                     
-                    -- Получаем направление камеры
                     local camera = workspace.CurrentCamera
                     local cameraCFrame = camera.CFrame
                     
-                    -- Поворачиваем персонажа в направлении камеры
                     if bodyGyro and bodyGyro.Parent then
                         bodyGyro.CFrame = cameraCFrame
                     end
                     
-                    -- Рассчитываем скорость на основе направления камеры
                     local velocity = Vector3.zero
                     local moving = false
                     
-                    -- Вперед/назад (W/S) - летит туда куда смотрит камера
                     if UserInputService:IsKeyDown(Enum.KeyCode.W) then
                         velocity = velocity + cameraCFrame.LookVector * speed
                         moving = true
@@ -147,7 +154,6 @@ function Player:Initialize(Tab)
                         moving = true
                     end
                     
-                    -- Влево/вправо (A/D)
                     if UserInputService:IsKeyDown(Enum.KeyCode.A) then
                         velocity = velocity - cameraCFrame.RightVector * speed
                         moving = true
@@ -157,7 +163,6 @@ function Player:Initialize(Tab)
                         moving = true
                     end
                     
-                    -- Дополнительное управление высотой
                     if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
                         velocity = velocity + Vector3.new(0, speed, 0)
                         moving = true
@@ -167,19 +172,16 @@ function Player:Initialize(Tab)
                         moving = true
                     end
                     
-                    -- Если ни одна клавиша не нажата - останавливаемся
                     if not moving then
                         velocity = Vector3.zero
                     end
                     
-                    -- Применяем скорость
                     if bodyVelocity and bodyVelocity.Parent then
                         bodyVelocity.Velocity = velocity
                     end
                 end)
-                print("Fly enabled - W: Forward (camera direction), S: Backward, Space: Up, Shift/Ctrl: Down")
+                print("Fly enabled")
             else
-                -- Выключаем полет
                 if flyConnection then
                     flyConnection:Disconnect()
                     flyConnection = nil
@@ -289,12 +291,12 @@ function Player:Initialize(Tab)
         print("Movement reset")
     end)
     
-    -- Добавляем обработчик для автоматического обновления при спавне
+    -- Обработчик респавна
     local function onCharacterAdded(char)
         local hum = char:WaitForChild("Humanoid")
         if hum then
-            hum.WalkSpeed = WalkSpeedSlider:GetValue() or 16
-            local jumpHeight = JumpHeightSlider:GetValue() or 7.2
+            hum.WalkSpeed = WalkSpeedSlider and WalkSpeedSlider:GetValue() or 16
+            local jumpHeight = JumpHeightSlider and JumpHeightSlider:GetValue() or 7.2
             hum.JumpHeight = jumpHeight
             hum.JumpPower = math.sqrt(2 * workspace.Gravity * jumpHeight)
         end
