@@ -17,7 +17,9 @@ function Player:Initialize(Tab)
         JumpPower = 50,
         FlyEnabled = false,
         FlySpeed = 50,
-        NoClip = false
+        NoClip = false,
+        AntiSpeedReset = false,
+        AntiJumpReset = false
     }
     
     self.Players = game:GetService("Players")
@@ -28,12 +30,13 @@ function Player:Initialize(Tab)
     self.FlyConnection = nil
     self.SpeedConnection = nil
     self.JumpConnection = nil
+    self.AntiResetConnection = nil
     
-    -- Создаем UI
     local Movement = Tab:AddLeftGroupbox("Movement")
     local Fly = Tab:AddRightGroupbox("Fly")
-    local Other = Tab:AddLeftGroupbox("Other")
+    local AntiCheat = Tab:AddLeftGroupbox("Anti-Cheat Bypass")
     
+    -- Movement
     Movement:AddToggle("CustomWalkSpeed", {
         Text = "Custom Walk Speed",
         Default = false,
@@ -82,6 +85,39 @@ function Player:Initialize(Tab)
         end
     })
     
+    -- Anti-Cheat Bypass
+    AntiCheat:AddToggle("AntiSpeedReset", {
+        Text = "Anti Speed Reset",
+        Default = false,
+        Tooltip = "Prevents anti-cheat from resetting walk speed",
+        Callback = function(v) 
+            self.PlayerEnv.Settings.AntiSpeedReset = v
+            if v then
+                self:StartAntiReset()
+            else
+                self:StopAntiReset()
+            end
+        end
+    })
+    
+    AntiCheat:AddToggle("AntiJumpReset", {
+        Text = "Anti Jump Reset",
+        Default = false,
+        Tooltip = "Prevents anti-cheat from resetting jump power",
+        Callback = function(v) 
+            self.PlayerEnv.Settings.AntiJumpReset = v
+            if v then
+                self:StartAntiReset()
+            else
+                self:StopAntiReset()
+            end
+        end
+    })
+    
+    AntiCheat:AddLabel("Works with Custom Speed/Jump")
+    AntiCheat:AddLabel("Forces values every frame")
+    
+    -- Fly
     Fly:AddToggle("FlyEnabled", {
         Text = "Fly",
         Default = false,
@@ -108,6 +144,8 @@ function Player:Initialize(Tab)
     
     Fly:AddLabel("Controls: WASD/Space/Shift")
     
+    -- NoClip отдельно
+    local Other = Tab:AddRightGroupbox("Other")
     Other:AddToggle("NoClip", {
         Text = "No Clip",
         Default = false,
@@ -123,13 +161,36 @@ function Player:Initialize(Tab)
         end
     })
     
-    Other:AddDivider()
-    Other:AddButton("Restore Defaults", function()
-        self:RestoreAll()
-    end)
-    
     print("Player module loaded!")
     return self
+end
+
+-- Anti-Reset система
+function Player:StartAntiReset()
+    if self.AntiResetConnection then return end
+    
+    self.AntiResetConnection = self.RunService.Heartbeat:Connect(function()
+        if not self.LocalPlayer.Character then return end
+        local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+        
+        -- Принудительно устанавливаем скорость каждый кадр
+        if self.PlayerEnv.Settings.AntiSpeedReset and self.PlayerEnv.Settings.CustomWalkSpeed then
+            humanoid.WalkSpeed = self.PlayerEnv.Settings.WalkSpeed
+        end
+        
+        -- Принудительно устанавливаем прыжок каждый кадр
+        if self.PlayerEnv.Settings.AntiJumpReset and self.PlayerEnv.Settings.CustomJumpPower then
+            humanoid.JumpPower = self.PlayerEnv.Settings.JumpPower
+        end
+    end)
+end
+
+function Player:StopAntiReset()
+    if self.AntiResetConnection and not self.PlayerEnv.Settings.AntiSpeedReset and not self.PlayerEnv.Settings.AntiJumpReset then
+        self.AntiResetConnection:Disconnect()
+        self.AntiResetConnection = nil
+    end
 end
 
 function Player:StartSpeedLoop()
@@ -142,6 +203,11 @@ function Player:StartSpeedLoop()
             end
         end
     end)
+    
+    -- Запускаем анти-ресет если нужно
+    if self.PlayerEnv.Settings.AntiSpeedReset and not self.AntiResetConnection then
+        self:StartAntiReset()
+    end
 end
 
 function Player:StopSpeedLoop()
@@ -155,6 +221,8 @@ function Player:StopSpeedLoop()
             humanoid.WalkSpeed = 16
         end
     end
+    
+    self:StopAntiReset()
 end
 
 function Player:StartJumpLoop()
@@ -167,6 +235,11 @@ function Player:StartJumpLoop()
             end
         end
     end)
+    
+    -- Запускаем анти-ресет если нужно
+    if self.PlayerEnv.Settings.AntiJumpReset and not self.AntiResetConnection then
+        self:StartAntiReset()
+    end
 end
 
 function Player:StopJumpLoop()
@@ -180,6 +253,8 @@ function Player:StopJumpLoop()
             humanoid.JumpPower = 50
         end
     end
+    
+    self:StopAntiReset()
 end
 
 function Player:StartFly()
@@ -194,6 +269,19 @@ function Player:StartFly()
     
     humanoid.PlatformStand = true
     
+    local bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.Name = "FlyGyro"
+    bodyGyro.P = 0
+    bodyGyro.MaxTorque = Vector3.new(0, 0, 0)
+    bodyGyro.CFrame = rootPart.CFrame
+    bodyGyro.Parent = rootPart
+    
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "FlyVelocity"
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+    bodyVelocity.Parent = rootPart
+    
     self.FlyConnection = self.RunService.Heartbeat:Connect(function()
         if not self.PlayerEnv.Settings.FlyEnabled then
             self:StopFly()
@@ -202,25 +290,34 @@ function Player:StartFly()
         
         local speed = self.PlayerEnv.Settings.FlySpeed
         local camera = workspace.CurrentCamera
+        local moveDirection = Vector3.new(0, 0, 0)
         
         if self.UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            rootPart.CFrame = rootPart.CFrame + (camera.CFrame.LookVector * speed * 0.1)
+            moveDirection = moveDirection + camera.CFrame.LookVector
         end
         if self.UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            rootPart.CFrame = rootPart.CFrame - (camera.CFrame.LookVector * speed * 0.1)
+            moveDirection = moveDirection - camera.CFrame.LookVector
         end
         if self.UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            rootPart.CFrame = rootPart.CFrame - (camera.CFrame.RightVector * speed * 0.1)
+            moveDirection = moveDirection - camera.CFrame.RightVector
         end
         if self.UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            rootPart.CFrame = rootPart.CFrame + (camera.CFrame.RightVector * speed * 0.1)
+            moveDirection = moveDirection + camera.CFrame.RightVector
         end
         if self.UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            rootPart.CFrame = rootPart.CFrame + (Vector3.new(0, 1, 0) * speed * 0.1)
+            moveDirection = moveDirection + Vector3.new(0, 1, 0)
         end
         if self.UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-            rootPart.CFrame = rootPart.CFrame - (Vector3.new(0, 1, 0) * speed * 0.1)
+            moveDirection = moveDirection - Vector3.new(0, 1, 0)
         end
+        
+        if moveDirection.Magnitude > 0 then
+            bodyVelocity.Velocity = moveDirection.Unit * speed
+        else
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        end
+        
+        bodyGyro.CFrame = camera.CFrame
     end)
 end
 
@@ -235,18 +332,27 @@ function Player:StopFly()
         if humanoid then
             humanoid.PlatformStand = false
         end
+        
+        local rootPart = self.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            local gyro = rootPart:FindFirstChild("FlyGyro")
+            if gyro then gyro:Destroy() end
+            
+            local velocity = rootPart:FindFirstChild("FlyVelocity")
+            if velocity then velocity:Destroy() end
+        end
     end
 end
 
-function Player:RestoreAll()
+function Player:Cleanup()
     self:StopFly()
     self:StopSpeedLoop()
     self:StopJumpLoop()
     
-    self.PlayerEnv.Settings.CustomWalkSpeed = false
-    self.PlayerEnv.Settings.CustomJumpPower = false
-    self.PlayerEnv.Settings.FlyEnabled = false
-    self.PlayerEnv.Settings.NoClip = false
+    if self.AntiResetConnection then
+        self.AntiResetConnection:Disconnect()
+        self.AntiResetConnection = nil
+    end
     
     if self.LocalPlayer.Character then
         local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -262,10 +368,6 @@ function Player:RestoreAll()
             end
         end
     end
-end
-
-function Player:Cleanup()
-    self:RestoreAll()
 end
 
 return Player
