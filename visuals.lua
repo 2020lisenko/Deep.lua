@@ -13,7 +13,6 @@ function Visuals:Initialize(Tab)
     
     -- Сервисы
     self.Lighting = game:GetService("Lighting")
-    self.RunService = game:GetService("RunService")
     self.Players = game:GetService("Players")
     self.LocalPlayer = self.Players.LocalPlayer
     
@@ -76,11 +75,7 @@ function Visuals:LoadDefaultSettings()
         SkyboxEnabled = false,
         SkyboxId = "",
         ThirdPerson = false,
-        ThirdPersonDistance = 10,
-        ForceMaterial = false,
-        MaterialType = "SmoothPlastic",
-        FPSUnlocker = false,
-        FPSLimit = 240
+        ThirdPersonDistance = 10
     }
 end
 
@@ -210,27 +205,9 @@ function Visuals:ApplyThirdPerson()
     if self.VisualsEnv.Settings.ThirdPerson then
         self.LocalPlayer.CameraMinZoomDistance = 0.5
         self.LocalPlayer.CameraMaxZoomDistance = self.VisualsEnv.Settings.ThirdPersonDistance
-    end
-end
-
-function Visuals:ApplyForceMaterial()
-    if self.VisualsEnv.Settings.ForceMaterial then
-        local material = Enum.Material[self.VisualsEnv.Settings.MaterialType]
-        if material then
-            for _, part in ipairs(workspace:GetDescendants()) do
-                if part:IsA("BasePart") and not part:IsDescendantOf(self.LocalPlayer.Character or workspace) then
-                    part.Material = material
-                end
-            end
-        end
-    end
-end
-
-function Visuals:ApplyFPSUnlocker()
-    if self.VisualsEnv.Settings.FPSUnlocker then
-        setfpscap(self.VisualsEnv.Settings.FPSLimit)
     else
-        setfpscap(60)
+        self.LocalPlayer.CameraMinZoomDistance = 0.5
+        self.LocalPlayer.CameraMaxZoomDistance = 10
     end
 end
 
@@ -241,7 +218,6 @@ function Visuals:RestoreAll()
     end
     
     self:RemoveSkybox()
-    setfpscap(60)
     
     self.LocalPlayer.CameraMinZoomDistance = 0.5
     self.LocalPlayer.CameraMaxZoomDistance = 10
@@ -596,51 +572,11 @@ function Visuals:CreateUI(Tab)
         Text = "Distance",
         Default = 10,
         Min = 1,
-        Max = 30,
+        Max = 100,
         Rounding = 1,
         Callback = function(v) 
             self.VisualsEnv.Settings.ThirdPersonDistance = v
             self:ApplyThirdPerson()
-        end
-    })
-    
-    Misc:AddToggle("ForceMaterial", {
-        Text = "Force Material",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.ForceMaterial = v
-            self:ApplyForceMaterial()
-        end
-    })
-    
-    Misc:AddDropdown("MaterialType", {
-        Values = {"SmoothPlastic", "Metal", "Glass", "Neon", "Wood", "Brick", "Concrete", "DiamondPlate"},
-        Default = "SmoothPlastic",
-        Text = "Material Type",
-        Callback = function(v) 
-            self.VisualsEnv.Settings.MaterialType = v
-            self:ApplyForceMaterial()
-        end
-    })
-    
-    Misc:AddToggle("FPSUnlocker", {
-        Text = "FPS Unlocker",
-        Default = false,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.FPSUnlocker = v
-            self:ApplyFPSUnlocker()
-        end
-    })
-    
-    Misc:AddSlider("FPSLimit", {
-        Text = "FPS Limit",
-        Default = 240,
-        Min = 60,
-        Max = 1000,
-        Rounding = 0,
-        Callback = function(v) 
-            self.VisualsEnv.Settings.FPSLimit = v
-            self:ApplyFPSUnlocker()
         end
     })
     
