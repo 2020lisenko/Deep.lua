@@ -30,7 +30,7 @@ function ESP:LoadDefaultSettings()
         TextSize = 18,
         TextFont = "SciFi",
         ShowDistance = true,
-        UseTeamColor = true,
+        UseTeamColor = true
     }
 end
 
@@ -90,19 +90,26 @@ function ESP:UpdateESP()
                         
                         if settings.UseTeamColor then
                             highlight.FillColor = player.TeamColor.Color
-                            icon["DeepESP_Text"].TextColor3 = player.TeamColor.Color
+                            local textLabel = icon:FindFirstChild("DeepESP_Text")
+                            if textLabel then
+                                textLabel.TextColor3 = player.TeamColor.Color
+                            end
                         end
                         
                         highlight.FillTransparency = settings.FillTransparency
                         highlight.OutlineTransparency = settings.OutlineTransparency
-                        icon["DeepESP_Text"].TextSize = settings.TextSize
-                        icon["DeepESP_Text"].Font = Enum.Font[settings.TextFont]
                         
-                        local text = player[settings.PlayerName]
-                        if settings.ShowDistance then
-                            text = text .. " | Distance: " .. distance
+                        local textLabel = icon:FindFirstChild("DeepESP_Text")
+                        if textLabel then
+                            textLabel.TextSize = settings.TextSize
+                            textLabel.Font = Enum.Font[settings.TextFont]
+                            
+                            local text = player[settings.PlayerName] or player.Name
+                            if settings.ShowDistance then
+                                text = text .. " | Distance: " .. distance
+                            end
+                            textLabel.Text = text
                         end
-                        icon["DeepESP_Text"].Text = text
                     end
                 end
             end
