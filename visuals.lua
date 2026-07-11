@@ -10,6 +10,7 @@ function Visuals:Initialize(Tab)
     
     self.VisualsEnv = getgenv().DeepVisuals
     self.Connections = {}
+    self.UIElements = {} -- Для хранения ссылок на UI элементы
     
     -- Сервисы
     self.Lighting = game:GetService("Lighting")
@@ -54,8 +55,7 @@ function Visuals:Initialize(Tab)
 end
 
 function Visuals:LoadDefaultSettings()
-    self.VisualsEnv.Settings = {
-        -- Lighting
+    self.DefaultVisualSettings = {
         FullBright = false,
         NoFog = false,
         NoShadows = false,
@@ -75,41 +75,32 @@ function Visuals:LoadDefaultSettings()
         CustomEnvironmentScale = false,
         EnvironmentDiffuseScale = 1,
         EnvironmentSpecularScale = 1,
-        
-        -- Post Processing
         DisableBloom = false,
         DisableBlur = false,
         DisableColorCorrection = false,
         DisableSunRays = false,
         DisableDepthOfField = false,
         DisableAtmosphere = false,
-        
-        -- Fog Settings
         CustomFog = false,
         FogColor = Color3.fromRGB(192, 192, 192),
         FogStart = 0,
         FogEnd = 100000,
-        
-        -- Shadow Settings
         CustomShadows = false,
         ShadowSoftness = 0.2,
-        
-        -- Skybox
         SkyboxEnabled = false,
         SkyboxId = "",
-        
-        -- Third Person
         ThirdPerson = false,
         ThirdPersonDistance = 10,
-        
-        -- Material
         ForceMaterial = false,
         MaterialType = "SmoothPlastic",
-        
-        -- FPS
         FPSUnlocker = false,
         FPSLimit = 240
     }
+    
+    -- Копируем в текущие настройки
+    for k, v in pairs(self.DefaultVisualSettings) do
+        self.VisualsEnv.Settings[k] = v
+    end
 end
 
 function Visuals:ApplySettings()
@@ -284,6 +275,7 @@ function Visuals:RemoveSkybox()
 end
 
 function Visuals:RestoreDefaults()
+    -- Восстанавливаем Lighting
     self.Lighting.Brightness = self.DefaultSettings.Brightness
     self.Lighting.FogEnd = self.DefaultSettings.FogEnd
     self.Lighting.FogStart = self.DefaultSettings.FogStart
@@ -298,6 +290,7 @@ function Visuals:RestoreDefaults()
     self.Lighting.EnvironmentSpecularScale = self.DefaultSettings.EnvironmentSpecularScale
     self.Lighting.ShadowSoftness = self.DefaultSettings.ShadowSoftness
     
+    -- Восстанавливаем пост-эффекты
     for effectName, data in pairs(self.DefaultPostEffects) do
         local effect = self.Lighting:FindFirstChild(effectName)
         if effect then
@@ -310,6 +303,25 @@ function Visuals:RestoreDefaults()
     
     self.LocalPlayer.CameraMinZoomDistance = 0.5
     self.LocalPlayer.CameraMaxZoomDistance = 10
+    
+    -- Сбрасываем настройки на дефолтные
+    for k, v in pairs(self.DefaultVisualSettings) do
+        self.VisualsEnv.Settings[k] = v
+    end
+    
+    -- Обновляем все UI элементы
+    for name, element in pairs(self.UIElements) do
+        if element and element.SetValue then
+            local defaultValue = self.DefaultVisualSettings[name]
+            if defaultValue ~= nil then
+                pcall(function()
+                    element:SetValue(defaultValue)
+                end)
+            end
+        end
+    end
+    
+    print("All visuals restored to defaults!")
 end
 
 function Visuals:StartVisualLoop()
@@ -325,31 +337,31 @@ function Visuals:CreateUI(Tab)
     local Misc = Tab:AddRightGroupbox("Misc")
     
     -- Lighting Group
-    Lighting:AddToggle("FullBright", {
+    self.UIElements["FullBright"] = Lighting:AddToggle("FullBright", {
         Text = "Full Bright",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.FullBright = v end
     })
     
-    Lighting:AddToggle("NoFog", {
+    self.UIElements["NoFog"] = Lighting:AddToggle("NoFog", {
         Text = "No Fog",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.NoFog = v end
     })
     
-    Lighting:AddToggle("NoShadows", {
+    self.UIElements["NoShadows"] = Lighting:AddToggle("NoShadows", {
         Text = "No Shadows",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.NoShadows = v end
     })
     
-    Lighting:AddToggle("CustomTime", {
+    self.UIElements["CustomTime"] = Lighting:AddToggle("CustomTime", {
         Text = "Custom Time",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomTime = v end
     })
     
-    Lighting:AddSlider("CustomTimeValue", {
+    self.UIElements["CustomTimeValue"] = Lighting:AddSlider("CustomTimeValue", {
         Text = "Time (0-24)",
         Default = 12,
         Min = 0,
@@ -358,13 +370,13 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.CustomTimeValue = v end
     })
     
-    Lighting:AddToggle("CustomBrightness", {
+    self.UIElements["CustomBrightness"] = Lighting:AddToggle("CustomBrightness", {
         Text = "Custom Brightness",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomBrightness = v end
     })
     
-    Lighting:AddSlider("BrightnessValue", {
+    self.UIElements["BrightnessValue"] = Lighting:AddSlider("BrightnessValue", {
         Text = "Brightness",
         Default = 2,
         Min = 0,
@@ -373,35 +385,35 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.BrightnessValue = v end
     })
     
-    Lighting:AddToggle("CustomAmbient", {
+    self.UIElements["CustomAmbient"] = Lighting:AddToggle("CustomAmbient", {
         Text = "Custom Ambient",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomAmbient = v end
     })
     
-    Lighting:AddLabel("Ambient Color"):AddColorPicker("AmbientColor", {
+    self.UIElements["AmbientColor"] = Lighting:AddLabel("Ambient Color"):AddColorPicker("AmbientColor", {
         Default = Color3.fromRGB(255, 255, 255),
         Callback = function(v) self.VisualsEnv.Settings.AmbientColor = v end
     })
     
-    Lighting:AddToggle("CustomOutdoorAmbient", {
+    self.UIElements["CustomOutdoorAmbient"] = Lighting:AddToggle("CustomOutdoorAmbient", {
         Text = "Custom Outdoor Ambient",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomOutdoorAmbient = v end
     })
     
-    Lighting:AddLabel("Outdoor Ambient"):AddColorPicker("OutdoorAmbientColor", {
+    self.UIElements["OutdoorAmbientColor"] = Lighting:AddLabel("Outdoor Ambient"):AddColorPicker("OutdoorAmbientColor", {
         Default = Color3.fromRGB(128, 128, 128),
         Callback = function(v) self.VisualsEnv.Settings.OutdoorAmbientColor = v end
     })
     
-    Lighting:AddToggle("CustomExposure", {
+    self.UIElements["CustomExposure"] = Lighting:AddToggle("CustomExposure", {
         Text = "Custom Exposure",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomExposure = v end
     })
     
-    Lighting:AddSlider("ExposureValue", {
+    self.UIElements["ExposureValue"] = Lighting:AddSlider("ExposureValue", {
         Text = "Exposure",
         Default = 0,
         Min = -5,
@@ -410,35 +422,35 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.ExposureValue = v end
     })
     
-    Lighting:AddToggle("CustomColorShift", {
+    self.UIElements["CustomColorShift"] = Lighting:AddToggle("CustomColorShift", {
         Text = "Custom Color Shift",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomColorShift = v end
     })
     
-    Lighting:AddLabel("Color Top"):AddColorPicker("ColorShiftTop", {
+    self.UIElements["ColorShiftTop"] = Lighting:AddLabel("Color Top"):AddColorPicker("ColorShiftTop", {
         Default = Color3.fromRGB(255, 255, 255),
         Callback = function(v) self.VisualsEnv.Settings.ColorShiftTop = v end
     })
     
-    Lighting:AddLabel("Color Bottom"):AddColorPicker("ColorShiftBottom", {
+    self.UIElements["ColorShiftBottom"] = Lighting:AddLabel("Color Bottom"):AddColorPicker("ColorShiftBottom", {
         Default = Color3.fromRGB(0, 0, 0),
         Callback = function(v) self.VisualsEnv.Settings.ColorShiftBottom = v end
     })
     
     -- Environment Group
-    Environment:AddToggle("CustomFog", {
+    self.UIElements["CustomFog"] = Environment:AddToggle("CustomFog", {
         Text = "Custom Fog",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomFog = v end
     })
     
-    Environment:AddLabel("Fog Color"):AddColorPicker("FogColor", {
+    self.UIElements["FogColor"] = Environment:AddLabel("Fog Color"):AddColorPicker("FogColor", {
         Default = Color3.fromRGB(192, 192, 192),
         Callback = function(v) self.VisualsEnv.Settings.FogColor = v end
     })
     
-    Environment:AddSlider("FogStart", {
+    self.UIElements["FogStart"] = Environment:AddSlider("FogStart", {
         Text = "Fog Start",
         Default = 0,
         Min = 0,
@@ -447,7 +459,7 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.FogStart = v end
     })
     
-    Environment:AddSlider("FogEnd", {
+    self.UIElements["FogEnd"] = Environment:AddSlider("FogEnd", {
         Text = "Fog End",
         Default = 100000,
         Min = 0,
@@ -456,13 +468,13 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.FogEnd = v end
     })
     
-    Environment:AddToggle("CustomShadows", {
+    self.UIElements["CustomShadows"] = Environment:AddToggle("CustomShadows", {
         Text = "Custom Shadows",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomShadows = v end
     })
     
-    Environment:AddSlider("ShadowSoftness", {
+    self.UIElements["ShadowSoftness"] = Environment:AddSlider("ShadowSoftness", {
         Text = "Shadow Softness",
         Default = 0.2,
         Min = 0,
@@ -471,13 +483,13 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.ShadowSoftness = v end
     })
     
-    Environment:AddToggle("CustomEnvironmentScale", {
+    self.UIElements["CustomEnvironmentScale"] = Environment:AddToggle("CustomEnvironmentScale", {
         Text = "Custom Environment Scale",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.CustomEnvironmentScale = v end
     })
     
-    Environment:AddSlider("EnvironmentDiffuseScale", {
+    self.UIElements["EnvironmentDiffuseScale"] = Environment:AddSlider("EnvironmentDiffuseScale", {
         Text = "Diffuse Scale",
         Default = 1,
         Min = 0,
@@ -486,7 +498,7 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.EnvironmentDiffuseScale = v end
     })
     
-    Environment:AddSlider("EnvironmentSpecularScale", {
+    self.UIElements["EnvironmentSpecularScale"] = Environment:AddSlider("EnvironmentSpecularScale", {
         Text = "Specular Scale",
         Default = 1,
         Min = 0,
@@ -495,13 +507,13 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.EnvironmentSpecularScale = v end
     })
     
-    Environment:AddToggle("SkyboxEnabled", {
+    self.UIElements["SkyboxEnabled"] = Environment:AddToggle("SkyboxEnabled", {
         Text = "Custom Skybox",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.SkyboxEnabled = v end
     })
     
-    Environment:AddDropdown("SkyboxId", {
+    self.UIElements["SkyboxId"] = Environment:AddDropdown("SkyboxId", {
         Values = {
             "rbxassetid://123456789",
             "rbxassetid://987654321",
@@ -513,50 +525,50 @@ function Visuals:CreateUI(Tab)
     })
     
     -- Post Processing Group
-    PostProcessing:AddToggle("DisableBloom", {
+    self.UIElements["DisableBloom"] = PostProcessing:AddToggle("DisableBloom", {
         Text = "Disable Bloom",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableBloom = v end
     })
     
-    PostProcessing:AddToggle("DisableBlur", {
+    self.UIElements["DisableBlur"] = PostProcessing:AddToggle("DisableBlur", {
         Text = "Disable Blur",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableBlur = v end
     })
     
-    PostProcessing:AddToggle("DisableColorCorrection", {
+    self.UIElements["DisableColorCorrection"] = PostProcessing:AddToggle("DisableColorCorrection", {
         Text = "Disable Color Correction",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableColorCorrection = v end
     })
     
-    PostProcessing:AddToggle("DisableSunRays", {
+    self.UIElements["DisableSunRays"] = PostProcessing:AddToggle("DisableSunRays", {
         Text = "Disable Sun Rays",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableSunRays = v end
     })
     
-    PostProcessing:AddToggle("DisableDepthOfField", {
+    self.UIElements["DisableDepthOfField"] = PostProcessing:AddToggle("DisableDepthOfField", {
         Text = "Disable Depth of Field",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableDepthOfField = v end
     })
     
-    PostProcessing:AddToggle("DisableAtmosphere", {
+    self.UIElements["DisableAtmosphere"] = PostProcessing:AddToggle("DisableAtmosphere", {
         Text = "Disable Atmosphere",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.DisableAtmosphere = v end
     })
     
     -- Misc Group
-    Misc:AddToggle("ThirdPerson", {
+    self.UIElements["ThirdPerson"] = Misc:AddToggle("ThirdPerson", {
         Text = "Third Person",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.ThirdPerson = v end
     })
     
-    Misc:AddSlider("ThirdPersonDistance", {
+    self.UIElements["ThirdPersonDistance"] = Misc:AddSlider("ThirdPersonDistance", {
         Text = "Distance",
         Default = 10,
         Min = 1,
@@ -565,26 +577,26 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) self.VisualsEnv.Settings.ThirdPersonDistance = v end
     })
     
-    Misc:AddToggle("ForceMaterial", {
+    self.UIElements["ForceMaterial"] = Misc:AddToggle("ForceMaterial", {
         Text = "Force Material",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.ForceMaterial = v end
     })
     
-    Misc:AddDropdown("MaterialType", {
+    self.UIElements["MaterialType"] = Misc:AddDropdown("MaterialType", {
         Values = {"SmoothPlastic", "Metal", "Glass", "Neon", "Wood", "Brick", "Concrete", "DiamondPlate"},
         Default = "SmoothPlastic",
         Text = "Material Type",
         Callback = function(v) self.VisualsEnv.Settings.MaterialType = v end
     })
     
-    Misc:AddToggle("FPSUnlocker", {
+    self.UIElements["FPSUnlocker"] = Misc:AddToggle("FPSUnlocker", {
         Text = "FPS Unlocker",
         Default = false,
         Callback = function(v) self.VisualsEnv.Settings.FPSUnlocker = v end
     })
     
-    Misc:AddSlider("FPSLimit", {
+    self.UIElements["FPSLimit"] = Misc:AddSlider("FPSLimit", {
         Text = "FPS Limit",
         Default = 240,
         Min = 60,
@@ -596,50 +608,7 @@ function Visuals:CreateUI(Tab)
     -- Restore Button
     Misc:AddDivider()
     Misc:AddButton("Restore Defaults", function()
-        self.VisualsEnv.Settings = {
-            FullBright = false,
-            NoFog = false,
-            NoShadows = false,
-            CustomTime = false,
-            CustomTimeValue = 12,
-            CustomBrightness = false,
-            BrightnessValue = 2,
-            CustomAmbient = false,
-            AmbientColor = Color3.fromRGB(255, 255, 255),
-            CustomOutdoorAmbient = false,
-            OutdoorAmbientColor = Color3.fromRGB(128, 128, 128),
-            CustomExposure = false,
-            ExposureValue = 0,
-            CustomColorShift = false,
-            ColorShiftTop = Color3.fromRGB(255, 255, 255),
-            ColorShiftBottom = Color3.fromRGB(0, 0, 0),
-            CustomEnvironmentScale = false,
-            EnvironmentDiffuseScale = 1,
-            EnvironmentSpecularScale = 1,
-            DisableBloom = false,
-            DisableBlur = false,
-            DisableColorCorrection = false,
-            DisableSunRays = false,
-            DisableDepthOfField = false,
-            DisableAtmosphere = false,
-            CustomFog = false,
-            FogColor = Color3.fromRGB(192, 192, 192),
-            FogStart = 0,
-            FogEnd = 100000,
-            CustomShadows = false,
-            ShadowSoftness = 0.2,
-            SkyboxEnabled = false,
-            SkyboxId = "",
-            ThirdPerson = false,
-            ThirdPersonDistance = 10,
-            ForceMaterial = false,
-            MaterialType = "SmoothPlastic",
-            FPSUnlocker = false,
-            FPSLimit = 240
-        }
-        
         self:RestoreDefaults()
-        print("Visuals restored to defaults")
     end)
 end
 
