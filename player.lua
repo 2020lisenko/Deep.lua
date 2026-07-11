@@ -2,6 +2,7 @@ local Player = {}
 Player.__index = Player
 
 function Player:Initialize(Tab)
+    print("Player module initializing...")
     local self = setmetatable({}, Player)
     
     if not getgenv().DeepPlayer then
@@ -9,6 +10,15 @@ function Player:Initialize(Tab)
     end
     
     self.PlayerEnv = getgenv().DeepPlayer
+    self.PlayerEnv.Settings = {
+        CustomWalkSpeed = false,
+        WalkSpeed = 16,
+        CustomJumpPower = false,
+        JumpPower = 50,
+        FlyEnabled = false,
+        FlySpeed = 50,
+        NoClip = false
+    }
     
     self.Players = game:GetService("Players")
     self.LocalPlayer = self.Players.LocalPlayer
@@ -19,41 +29,111 @@ function Player:Initialize(Tab)
     self.SpeedConnection = nil
     self.JumpConnection = nil
     
-    self:LoadDefaultSettings()
-    self:CreateUI(Tab)
+    -- Создаем UI
+    local Movement = Tab:AddLeftGroupbox("Movement")
+    local Fly = Tab:AddRightGroupbox("Fly")
+    local Other = Tab:AddLeftGroupbox("Other")
     
-    return self
-end
-
-function Player:LoadDefaultSettings()
-    self.PlayerEnv.Settings = {
-        CustomWalkSpeed = false,
-        WalkSpeed = 16,
-        CustomJumpPower = false,
-        JumpPower = 50,
-        FlyEnabled = false,
-        FlySpeed = 50,
-        NoClip = false
-    }
-end
-
-function Player:ApplyWalkSpeed()
-    if self.PlayerEnv.Settings.CustomWalkSpeed then
-        self:StartSpeedLoop()
-    else
-        self:StopSpeedLoop()
-        if self.LocalPlayer.Character then
-            local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.WalkSpeed = 16
+    Movement:AddToggle("CustomWalkSpeed", {
+        Text = "Custom Walk Speed",
+        Default = false,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.CustomWalkSpeed = v
+            if v then
+                self:StartSpeedLoop()
+            else
+                self:StopSpeedLoop()
             end
         end
-    end
+    })
+    
+    Movement:AddSlider("WalkSpeed", {
+        Text = "Walk Speed",
+        Default = 16,
+        Min = 1,
+        Max = 200,
+        Rounding = 0,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.WalkSpeed = v
+        end
+    })
+    
+    Movement:AddToggle("CustomJumpPower", {
+        Text = "Custom Jump Power",
+        Default = false,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.CustomJumpPower = v
+            if v then
+                self:StartJumpLoop()
+            else
+                self:StopJumpLoop()
+            end
+        end
+    })
+    
+    Movement:AddSlider("JumpPower", {
+        Text = "Jump Power",
+        Default = 50,
+        Min = 1,
+        Max = 500,
+        Rounding = 0,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.JumpPower = v
+        end
+    })
+    
+    Fly:AddToggle("FlyEnabled", {
+        Text = "Fly",
+        Default = false,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.FlyEnabled = v
+            if v then
+                self:StartFly()
+            else
+                self:StopFly()
+            end
+        end
+    })
+    
+    Fly:AddSlider("FlySpeed", {
+        Text = "Fly Speed",
+        Default = 50,
+        Min = 1,
+        Max = 200,
+        Rounding = 0,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.FlySpeed = v
+        end
+    })
+    
+    Fly:AddLabel("Controls: WASD/Space/Shift")
+    
+    Other:AddToggle("NoClip", {
+        Text = "No Clip",
+        Default = false,
+        Callback = function(v) 
+            self.PlayerEnv.Settings.NoClip = v
+            if self.LocalPlayer.Character then
+                for _, part in ipairs(self.LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = not v
+                    end
+                end
+            end
+        end
+    })
+    
+    Other:AddDivider()
+    Other:AddButton("Restore Defaults", function()
+        self:RestoreAll()
+    end)
+    
+    print("Player module loaded!")
+    return self
 end
 
 function Player:StartSpeedLoop()
     if self.SpeedConnection then return end
-    
     self.SpeedConnection = self.RunService.Heartbeat:Connect(function()
         if self.LocalPlayer.Character and self.PlayerEnv.Settings.CustomWalkSpeed then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -69,25 +149,16 @@ function Player:StopSpeedLoop()
         self.SpeedConnection:Disconnect()
         self.SpeedConnection = nil
     end
-end
-
-function Player:ApplyJumpPower()
-    if self.PlayerEnv.Settings.CustomJumpPower then
-        self:StartJumpLoop()
-    else
-        self:StopJumpLoop()
-        if self.LocalPlayer.Character then
-            local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                humanoid.JumpPower = 50
-            end
+    if self.LocalPlayer.Character then
+        local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = 16
         end
     end
 end
 
 function Player:StartJumpLoop()
     if self.JumpConnection then return end
-    
     self.JumpConnection = self.RunService.Heartbeat:Connect(function()
         if self.LocalPlayer.Character and self.PlayerEnv.Settings.CustomJumpPower then
             local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
@@ -103,13 +174,11 @@ function Player:StopJumpLoop()
         self.JumpConnection:Disconnect()
         self.JumpConnection = nil
     end
-end
-
-function Player:ApplyFly()
-    if self.PlayerEnv.Settings.FlyEnabled then
-        self:StartFly()
-    else
-        self:StopFly()
+    if self.LocalPlayer.Character then
+        local humanoid = self.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = 50
+        end
     end
 end
 
@@ -169,16 +238,6 @@ function Player:StopFly()
     end
 end
 
-function Player:ApplyNoClip()
-    if not self.LocalPlayer.Character then return end
-    
-    for _, part in ipairs(self.LocalPlayer.Character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = not self.PlayerEnv.Settings.NoClip
-        end
-    end
-end
-
 function Player:RestoreAll()
     self:StopFly()
     self:StopSpeedLoop()
@@ -203,90 +262,6 @@ function Player:RestoreAll()
             end
         end
     end
-    
-    print("Player settings restored!")
-end
-
-function Player:CreateUI(Tab)
-    local Movement = Tab:AddLeftGroupbox("Movement")
-    local Fly = Tab:AddRightGroupbox("Fly")
-    local Other = Tab:AddLeftGroupbox("Other")
-    
-    Movement:AddToggle("CustomWalkSpeed", {
-        Text = "Custom Walk Speed",
-        Default = false,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.CustomWalkSpeed = v
-            self:ApplyWalkSpeed()
-        end
-    })
-    
-    Movement:AddSlider("WalkSpeed", {
-        Text = "Walk Speed",
-        Default = 16,
-        Min = 1,
-        Max = 200,
-        Rounding = 0,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.WalkSpeed = v
-        end
-    })
-    
-    Movement:AddToggle("CustomJumpPower", {
-        Text = "Custom Jump Power",
-        Default = false,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.CustomJumpPower = v
-            self:ApplyJumpPower()
-        end
-    })
-    
-    Movement:AddSlider("JumpPower", {
-        Text = "Jump Power",
-        Default = 50,
-        Min = 1,
-        Max = 500,
-        Rounding = 0,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.JumpPower = v
-        end
-    })
-    
-    Fly:AddToggle("FlyEnabled", {
-        Text = "Fly",
-        Default = false,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.FlyEnabled = v
-            self:ApplyFly()
-        end
-    })
-    
-    Fly:AddSlider("FlySpeed", {
-        Text = "Fly Speed",
-        Default = 50,
-        Min = 1,
-        Max = 200,
-        Rounding = 0,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.FlySpeed = v
-        end
-    })
-    
-    Fly:AddLabel("Controls: WASD/Space/Shift")
-    
-    Other:AddToggle("NoClip", {
-        Text = "No Clip",
-        Default = false,
-        Callback = function(v) 
-            self.PlayerEnv.Settings.NoClip = v
-            self:ApplyNoClip()
-        end
-    })
-    
-    Other:AddDivider()
-    Other:AddButton("Restore Defaults", function()
-        self:RestoreAll()
-    end)
 end
 
 function Player:Cleanup()
