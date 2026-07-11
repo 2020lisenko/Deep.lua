@@ -31,6 +31,7 @@ function ModuleLoader:LoadModule(moduleName, ...)
     
     if success and result then
         self.LoadedModules[moduleName] = result:Initialize(...)
+        print("Module loaded: " .. moduleName)
         return self.LoadedModules[moduleName]
     else
         warn("Failed to load " .. moduleName .. ":", result)
@@ -58,6 +59,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Aimbot = Window:AddTab("Aimbot", "crosshair"),
     ESP = Window:AddTab("ESP", "eye"),
+    Visuals = Window:AddTab("Visuals", "palette"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
@@ -71,10 +73,12 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
+-- Загрузка модулей
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
+local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
 
--- UI Settings с системой скрытия меню из оригинального кода
+-- UI Settings
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -135,6 +139,7 @@ MenuGroup:AddButton("Unload", function()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
+    getgenv().DeepVisuals = nil
     Library:Unload()
 end)
 
@@ -163,7 +168,6 @@ for k, v in next, CustomTheme do
     Library.Scheme[k] = v
 end
 
--- Метод UpdateColorsUsingScheme может отсутствовать, используем pcall
 pcall(function()
     Library:UpdateColorsUsingScheme()
 end)
@@ -175,4 +179,5 @@ Library:OnUnload(function()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
+    getgenv().DeepVisuals = nil
 end)
