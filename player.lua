@@ -9,7 +9,7 @@ function Player:Initialize(Tab)
     local Movement = Tab:AddLeftGroupbox("Movement")
     
     -- WalkSpeed
-    Movement:AddSlider("WalkSpeed", {
+    local WalkSpeedSlider = Movement:AddSlider("WalkSpeed", {
         Text = "Walk Speed",
         Default = 16,
         Min = 1,
@@ -27,29 +27,10 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- JumpPower
-    Movement:AddSlider("JumpPower", {
-        Text = "Jump Power",
-        Default = 50,
-        Min = 0,
-        Max = 500,
-        Rounding = 0,
-        Callback = function(v)
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    hum.JumpPower = v
-                    print("JumpPower set to:", v)
-                end
-            end
-        end
-    })
-    
     -- JumpHeight
-    Movement:AddSlider("JumpHeight", {
+    local JumpHeightSlider = Movement:AddSlider("JumpHeight", {
         Text = "Jump Height",
-        Default = 7,
+        Default = 7.2,
         Min = 1,
         Max = 50,
         Rounding = 1,
@@ -65,46 +46,15 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Gravity
-    Movement:AddSlider("Gravity", {
-        Text = "Gravity",
-        Default = 196.2,
-        Min = 0,
-        Max = 500,
-        Rounding = 1,
-        Callback = function(v)
-            workspace.Gravity = v
-            print("Gravity set to:", v)
-        end
-    })
-    
-    -- HipHeight
-    Movement:AddSlider("HipHeight", {
-        Text = "Hip Height",
-        Default = 2,
-        Min = 0,
-        Max = 10,
-        Rounding = 1,
-        Callback = function(v)
-            local char = LocalPlayer.Character
-            if char then
-                local hum = char:FindFirstChild("Humanoid")
-                if hum then
-                    hum.HipHeight = v
-                    print("HipHeight set to:", v)
-                end
-            end
-        end
-    })
-    
     -- Character features
     local Character = Tab:AddLeftGroupbox("Character")
     
     -- Fly toggle
     local flyConnection
     local flyEnabled = false
+    local flySpeed = 50
     
-    Character:AddToggle("Fly", {
+    local FlyToggle = Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
         Callback = function(v)
@@ -116,11 +66,38 @@ function Player:Initialize(Tab)
             if not hum or not root then return end
             
             if flyEnabled then
+                -- Остановим предыдущее соединение если есть
+                if flyConnection then
+                    flyConnection:Disconnect()
+                end
+                
+                local bodyGyro = Instance.new("BodyGyro")
+                bodyGyro.P = 9e4
+                bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+                bodyGyro.CFrame = root.CFrame
+                bodyGyro.Parent = root
+                
+                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                bodyVelocity.Parent = root
+                
                 flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
                     if flyEnabled and char and root and hum then
-                        hum.PlatformStand = true
-                        local moveDir = root.CFrame.LookVector * (hum.MoveDirection.Magnitude > 0 and 1 or 0)
-                        root.Velocity = Vector3.new(moveDir.X * 50, math.clamp(root.Velocity.Y, -50, 50), moveDir.Z * 50)
+                        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                        
+                        local moveDirection = Vector3.new()
+                        if hum.MoveDirection.Magnitude > 0 then
+                            moveDirection = hum.MoveDirection * flySpeed
+                        end
+                        
+                        bodyVelocity.Velocity = moveDirection
+                        
+                        -- Управление высотой с помощью прыжка
+                        if hum.Jump then
+                            bodyVelocity.Velocity = bodyVelocity.Velocity + Vector3.new(0, flySpeed, 0)
+                        end
+                        hum.Jump = false
                     end
                 end)
                 print("Fly enabled")
@@ -129,8 +106,11 @@ function Player:Initialize(Tab)
                     flyConnection:Disconnect()
                     flyConnection = nil
                 end
-                if hum and char then
-                    hum.PlatformStand = false
+                if root then
+                    local bg = root:FindFirstChild("BodyGyro")
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if bg then bg:Destroy() end
+                    if bv then bv:Destroy() end
                 end
                 print("Fly disabled")
             end
@@ -141,7 +121,7 @@ function Player:Initialize(Tab)
     local noclipConnection
     local noclipEnabled = false
     
-    Character:AddToggle("Noclip", {
+    local NoclipToggle = Character:AddToggle("Noclip", {
         Text = "Noclip",
         Default = false,
         Callback = function(v)
@@ -155,7 +135,7 @@ function Player:Initialize(Tab)
                             end
                         end
                     end
-                end)
+                })
                 print("Noclip enabled")
             else
                 if noclipConnection then
@@ -176,27 +156,34 @@ function Player:Initialize(Tab)
     
     -- Infinite Jump toggle
     local infJumpEnabled = false
+    local infJumpConnection
     
-    Character:AddToggle("InfiniteJump", {
+    local InfJumpToggle = Character:AddToggle("InfiniteJump", {
         Text = "Infinite Jump",
         Default = false,
         Callback = function(v)
             infJumpEnabled = v
             if infJumpEnabled then
-                if not LocalPlayer.Character then return end
-                local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-                if hum then
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+                if infJumpConnection then
+                    infJumpConnection:Disconnect()
                 end
+                infJumpConnection = game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+                    if gameProcessed then return end
+                    if infJumpEnabled and input.KeyCode == Enum.KeyCode.Space then
+                        local char = LocalPlayer.Character
+                        if char then
+                            local hum = char:FindFirstChild("Humanoid")
+                            if hum then
+                                hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                            end
+                        end
+                    end
+                end)
                 print("Infinite Jump enabled")
             else
-                if LocalPlayer.Character then
-                    local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-                    if hum then
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-                    end
+                if infJumpConnection then
+                    infJumpConnection:Disconnect()
+                    infJumpConnection = nil
                 end
                 print("Infinite Jump disabled")
             end
@@ -205,17 +192,22 @@ function Player:Initialize(Tab)
     
     -- Reset button
     Movement:AddButton("Reset Movement", function()
+        local defaultWalkSpeed = 16
+        local defaultJumpHeight = 7.2
+        
+        -- Устанавливаем значения слайдеров
+        WalkSpeedSlider:SetValue(defaultWalkSpeed)
+        JumpHeightSlider:SetValue(defaultJumpHeight)
+        
+        -- Применяем значения к персонажу
         local char = LocalPlayer.Character
         if char then
             local hum = char:FindFirstChild("Humanoid")
             if hum then
-                hum.WalkSpeed = 16
-                hum.JumpPower = 50
-                hum.JumpHeight = 7.2
-                hum.HipHeight = 2
+                hum.WalkSpeed = defaultWalkSpeed
+                hum.JumpHeight = defaultJumpHeight
             end
         end
-        workspace.Gravity = 196.2
         print("Movement reset to default values")
     end)
     
@@ -229,14 +221,16 @@ function Player:Initialize(Tab)
             if noclipConnection then
                 noclipConnection:Disconnect()
             end
+            if infJumpConnection then
+                infJumpConnection:Disconnect()
+            end
             if LocalPlayer.Character then
-                local hum = LocalPlayer.Character:FindFirstChild("Humanoid")
-                if hum then
-                    if flyEnabled then hum.PlatformStand = false end
-                    if infJumpEnabled then
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
-                        hum:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-                    end
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local bg = root:FindFirstChild("BodyGyro")
+                    local bv = root:FindFirstChild("BodyVelocity")
+                    if bg then bg:Destroy() end
+                    if bv then bv:Destroy() end
                 end
                 for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -244,7 +238,6 @@ function Player:Initialize(Tab)
                     end
                 end
             end
-            workspace.Gravity = 196.2
             print("Player cleanup!")
         end
     }
