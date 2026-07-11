@@ -63,7 +63,9 @@ function Visuals:LoadDefaultSettings()
         SkyboxEnabled = false,
         SkyboxId = "",
         ThirdPerson = false,
-        ThirdPersonDistance = 10
+        ThirdPersonDistance = 10,
+        ScreenStretch = false,
+        ScreenStretchAmount = 1.0
     }
 end
 
@@ -193,6 +195,17 @@ function Visuals:ApplyThirdPerson()
     end
 end
 
+function Visuals:ApplyScreenStretch()
+    local camera = workspace.CurrentCamera
+    if self.VisualsEnv.Settings.ScreenStretch then
+        local amount = self.VisualsEnv.Settings.ScreenStretchAmount
+        local fov = 70 * amount
+        camera.FieldOfView = math.clamp(fov, 1, 120)
+    else
+        camera.FieldOfView = 70
+    end
+end
+
 function Visuals:RestoreAll()
     for k, v in pairs(self.OriginalValues) do
         self.Lighting[k] = v
@@ -202,6 +215,8 @@ function Visuals:RestoreAll()
     
     self.LocalPlayer.CameraMinZoomDistance = 0.5
     self.LocalPlayer.CameraMaxZoomDistance = 10
+    
+    workspace.CurrentCamera.FieldOfView = 70
     
     self:LoadDefaultSettings()
     
@@ -471,6 +486,29 @@ function Visuals:CreateUI(Tab)
         Callback = function(v) 
             self.VisualsEnv.Settings.ThirdPersonDistance = v
             self:ApplyThirdPerson()
+        end
+    })
+    
+    Misc:AddDivider()
+    
+    Misc:AddToggle("ScreenStretch", {
+        Text = "Screen Stretch",
+        Default = false,
+        Callback = function(v)
+            self.VisualsEnv.Settings.ScreenStretch = v
+            self:ApplyScreenStretch()
+        end
+    })
+    
+    Misc:AddSlider("ScreenStretchAmount", {
+        Text = "Stretch Amount",
+        Default = 1.0,
+        Min = 0.5,
+        Max = 3.0,
+        Rounding = 2,
+        Callback = function(v)
+            self.VisualsEnv.Settings.ScreenStretchAmount = v
+            self:ApplyScreenStretch()
         end
     })
     
