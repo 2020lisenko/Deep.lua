@@ -9,14 +9,11 @@ function Visuals:Initialize(Tab)
     end
     
     self.VisualsEnv = getgenv().DeepVisuals
-    self.Connections = {}
     
-    -- Сервисы
     self.Lighting = game:GetService("Lighting")
     self.Players = game:GetService("Players")
     self.LocalPlayer = self.Players.LocalPlayer
     
-    -- Сохранение оригинальных значений
     self.OriginalValues = {
         Brightness = self.Lighting.Brightness,
         FogEnd = self.Lighting.FogEnd,
@@ -483,7 +480,6 @@ function Visuals:CreateUI(Tab)
         end
     })
     
-    -- Restore Button
     Misc:AddDivider()
     Misc:AddButton("Restore Defaults", function()
         self:RestoreAll()
