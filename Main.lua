@@ -84,6 +84,13 @@ MenuGroup:AddToggle("KeybindMenuOpen", {
     end,
 })
 
+MenuGroup:AddDivider()
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
+    Default = "RightShift", 
+    NoUI = true, 
+    Text = "Menu keybind" 
+})
+
 MenuGroup:AddButton("Unload", function()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
@@ -91,6 +98,7 @@ MenuGroup:AddButton("Unload", function()
     Library:Unload()
 end)
 
+-- ВОТ ЭТА СТРОКА ВАЖНА! Устанавливает клавишу для открытия меню
 Library.ToggleKeybind = Options.MenuKeybind
 
 SaveManager:LoadAutoloadConfig()
