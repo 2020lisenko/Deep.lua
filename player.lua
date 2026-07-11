@@ -51,6 +51,8 @@ function Player:Initialize(Tab)
     -- Fly
     local flyConnection
     local flyEnabled = false
+    local bodyGyro
+    local bodyVelocity
     
     Character:AddToggle("Fly", {
         Text = "Fly",
@@ -66,31 +68,52 @@ function Player:Initialize(Tab)
             if flyEnabled then
                 if flyConnection then flyConnection:Disconnect() end
                 
-                local bodyGyro = Instance.new("BodyGyro")
+                -- Сохраняем ссылки на созданные объекты
+                bodyGyro = Instance.new("BodyGyro")
                 bodyGyro.P = 9e4
                 bodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
                 bodyGyro.Parent = root
                 
-                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity = Instance.new("BodyVelocity")
                 bodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                 bodyVelocity.Parent = root
                 
                 flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                    if not flyEnabled or not char.Parent or not root.Parent then return end
+                    if not flyEnabled or not char or not char.Parent or not root or not root.Parent then 
+                        -- Автоматически выключаем полет если персонаж исчез
+                        flyEnabled = false
+                        if flyConnection then
+                            flyConnection:Disconnect()
+                            flyConnection = nil
+                        end
+                        if bodyGyro then
+                            bodyGyro:Destroy()
+                            bodyGyro = nil
+                        end
+                        if bodyVelocity then
+                            bodyVelocity:Destroy()
+                            bodyVelocity = nil
+                        end
+                        return 
+                    end
                     
-                    bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                    if bodyGyro and bodyGyro.Parent then
+                        bodyGyro.CFrame = workspace.CurrentCamera.CFrame
+                    end
                     
                     local velocity = Vector3.zero
                     if hum.MoveDirection.Magnitude > 0 then
                         velocity = hum.MoveDirection * 50
                     end
                     
-                    if hum.Jump then
+                    -- Проверяем нажатие пробела для полета вверх
+                    if game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.Space) then
                         velocity = velocity + Vector3.new(0, 50, 0)
-                        hum.Jump = false
                     end
                     
-                    bodyVelocity.Velocity = velocity
+                    if bodyVelocity and bodyVelocity.Parent then
+                        bodyVelocity.Velocity = velocity
+                    end
                 end)
                 print("Fly enabled")
             else
@@ -98,11 +121,13 @@ function Player:Initialize(Tab)
                     flyConnection:Disconnect()
                     flyConnection = nil
                 end
-                if root then
-                    local bg = root:FindFirstChild("BodyGyro")
-                    local bv = root:FindFirstChild("BodyVelocity")
-                    if bg then bg:Destroy() end
-                    if bv then bv:Destroy() end
+                if bodyGyro then
+                    bodyGyro:Destroy()
+                    bodyGyro = nil
+                end
+                if bodyVelocity then
+                    bodyVelocity:Destroy()
+                    bodyVelocity = nil
                 end
                 print("Fly disabled")
             end
@@ -119,6 +144,7 @@ function Player:Initialize(Tab)
         Callback = function(v)
             noclipEnabled = v
             if noclipEnabled then
+                if noclipConnection then noclipConnection:Disconnect() end
                 noclipConnection = game:GetService("RunService").Stepped:Connect(function()
                     if noclipEnabled and LocalPlayer.Character then
                         for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
@@ -200,9 +226,26 @@ function Player:Initialize(Tab)
     
     return {
         Cleanup = function()
-            if flyConnection then flyConnection:Disconnect() end
-            if noclipConnection then noclipConnection:Disconnect() end
-            if infJumpConnection then infJumpConnection:Disconnect() end
+            if flyConnection then 
+                flyConnection:Disconnect() 
+                flyConnection = nil
+            end
+            if bodyGyro then
+                bodyGyro:Destroy()
+                bodyGyro = nil
+            end
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+                bodyVelocity = nil
+            end
+            if noclipConnection then 
+                noclipConnection:Disconnect()
+                noclipConnection = nil
+            end
+            if infJumpConnection then 
+                infJumpConnection:Disconnect()
+                infJumpConnection = nil
+            end
             if LocalPlayer.Character then
                 local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
                 if root then
