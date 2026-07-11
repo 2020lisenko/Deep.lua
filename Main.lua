@@ -56,6 +56,7 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = true,
 })
 
+-- ВОТ ЭТО ВАЖНО - 5 вкладок!
 local Tabs = {
     Aimbot = Window:AddTab("Aimbot", "crosshair"),
     ESP = Window:AddTab("ESP", "eye"),
@@ -74,11 +75,13 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
--- Загрузка модулей
+-- Загружаем ВСЕ модули
+print("Loading modules...")
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
 local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
 local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
+print("All modules loaded!")
 
 -- UI Settings
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
@@ -146,7 +149,6 @@ MenuGroup:AddButton("Unload", function()
     Library:Unload()
 end)
 
--- Система скрытия меню
 Library.ToggleKeybind = Options.MenuKeybind
 
 local CustomTheme = {
