@@ -98,8 +98,22 @@ MenuGroup:AddButton("Unload", function()
     Library:Unload()
 end)
 
--- ВОТ ЭТА СТРОКА ВАЖНА! Устанавливает клавишу для открытия меню
-Library.ToggleKeybind = Options.MenuKeybind
+-- Установка клавиши меню с задержкой
+task.wait(0.5)
+Library.ToggleKeybind = Options.MenuKeybind or Enum.KeyCode.RightShift
+
+-- Если все еще не работает, добавьте принудительно:
+if not Library.ToggleKeybind then
+    Library.ToggleKeybind = Enum.KeyCode.RightShift
+end
+
+-- Ручное управление через UserInputService (гарантированно работает)
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        Library.KeybindFrame.Visible = not Library.KeybindFrame.Visible
+    end
+end)
 
 SaveManager:LoadAutoloadConfig()
 
