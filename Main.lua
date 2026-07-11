@@ -1,30 +1,44 @@
--- Main.lua
+-- Используем оригинальный репозиторий для библиотек
 local originalRepo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local myRepo = "https://raw.githubusercontent.com/2020lisenko/Deep.lua/refs/heads/main/"
 
--- Загружаем библиотеки из оригинального репозитория
+-- Загружаем библиотеки из оригинального репозитория (где они есть)
 local Library = loadstring(game:HttpGet(originalRepo .. "Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(originalRepo .. "addons/ThemeManager.lua"))()
 local SaveManager = loadstring(game:HttpGet(originalRepo .. "addons/SaveManager.lua"))()
 
--- ModuleLoader для загрузки ваших модулей
+local Options = Library.Options
+local Toggles = Library.Toggles
+
+Library.ForceCheckbox = false
+Library.ShowToggleFrameInKeybinds = true
+
+-- Встроенный ModuleLoader (не загружаем отдельно)
 local ModuleLoader = {
     Repo = myRepo,
     LoadedModules = {}
 }
 
 function ModuleLoader:LoadModule(moduleName, ...)
-    local success, module = pcall(function()
-        return loadstring(game:HttpGet(self.Repo .. moduleName:lower() .. ".lua"))()
+    local url = self.Repo .. moduleName .. ".lua"
+    print("Loading module: " .. url)
+    
+    local success, result = pcall(function()
+        local moduleCode = game:HttpGet(url)
+        local moduleFunc, err = loadstring(moduleCode)
+        if not moduleFunc then
+            error("Syntax error in " .. moduleName .. ": " .. tostring(err))
+        end
+        return moduleFunc()
     end)
     
-    if success and module then
-        self.LoadedModules[moduleName] = module:Initialize(...)
+    if success and result then
+        self.LoadedModules[moduleName] = result:Initialize(...)
         return self.LoadedModules[moduleName]
     else
-        warn("Failed to load module: " .. moduleName, module)
-        return nil
+        warn("Failed to load " .. moduleName .. ":", result)
     end
+    return nil
 end
 
 function ModuleLoader:CleanupAll()
@@ -45,7 +59,7 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = true,
 })
 
--- Вкладки
+-- Создание вкладок
 local Tabs = {
     Aimbot = Window:AddTab("Aimbot", "crosshair"),
     ESP = Window:AddTab("ESP", "eye"),
@@ -63,11 +77,11 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
--- Загрузка модулей
-local AimbotModule = ModuleLoader:LoadModule("Aimbot", Tabs.Aimbot)
-local ESPModule = ModuleLoader:LoadModule("ESP", Tabs.ESP)
+-- Загружаем модули из ВАШЕГО репозитория
+local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
+local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
 
--- Настройки UI
+-- UI Settings
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -78,13 +92,57 @@ MenuGroup:AddToggle("KeybindMenuOpen", {
     end,
 })
 
+MenuGroup:AddToggle("ShowCustomCursor", {
+    Text = "Custom Cursor",
+    Default = Library.ShowCustomCursor,
+    Callback = function(Value)
+        Library.ShowCustomCursor = Value
+    end,
+})
+
+MenuGroup:AddDropdown("NotificationSide", {
+    Values = {"Left", "Right"},
+    Default = "Right",
+    Text = "Notification Side",
+    Callback = function(Value)
+        Library:SetNotifySide(Value)
+    end,
+})
+
+MenuGroup:AddDropdown("DPIDropdown", {
+    Values = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
+    Default = "100%",
+    Text = "DPI Scale",
+    Callback = function(Value)
+        Value = Value:gsub("%%", "")
+        local DPI = tonumber(Value)
+        Library:SetDPIScale(DPI)
+    end,
+})
+
+MenuGroup:AddSlider("UICornerSlider", {
+    Text = "Corner Radius",
+    Default = Library.CornerRadius,
+    Min = 0,
+    Max = 20,
+    Rounding = 0,
+    Callback = function(value)
+        Window:SetCornerRadius(value)
+    end
+})
+
+MenuGroup:AddDivider()
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
+    Default = "RightShift", 
+    NoUI = true, 
+    Text = "Menu keybind" 
+})
+
 MenuGroup:AddButton("Unload", function()
-    if ESPModule then ESPModule:Cleanup() end
-    if AimbotModule then AimbotModule:Cleanup() end
     ModuleLoader:CleanupAll()
-    Library:Unload()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
+    Library:Unload()
 end)
 
 Library.ToggleKeybind = Options.MenuKeybind
@@ -92,8 +150,20 @@ Library.ToggleKeybind = Options.MenuKeybind
 -- Тема
 local CustomTheme = {
     Accent = Color3.fromRGB(0, 150, 255),
+    AccentColor2 = Color3.fromRGB(255, 255, 255),
     Background = Color3.fromRGB(10, 10, 20),
-    -- ... остальные цвета
+    BackgroundColor2 = Color3.fromRGB(20, 20, 35),
+    CustomFont = "Gotham",
+    ElementBorder = Color3.fromRGB(0, 150, 255),
+    FontColor = Color3.fromRGB(255, 255, 255),
+    FontColorSecondary = Color3.fromRGB(150, 150, 200),
+    NavBarColor = Color3.fromRGB(5, 5, 15),
+    NavBarAccentColor = Color3.fromRGB(0, 150, 255),
+    Red = Color3.fromRGB(255, 50, 50),
+    RiskyColor = Color3.fromRGB(255, 50, 50),
+    TabColor = Color3.fromRGB(15, 15, 25),
+    TabTextColor = Color3.fromRGB(200, 200, 255),
+    TabTextColorSelected = Color3.fromRGB(0, 150, 255),
 }
 
 for k, v in next, CustomTheme do
