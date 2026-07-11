@@ -21,47 +21,76 @@ function Player:Initialize(Tab)
         NoClip = false
     }
     
-    local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local Humanoid = Character:WaitForChild("Humanoid")
-    local HRP = Character:WaitForChild("HumanoidRootPart")
+    -- Функция для получения текущего персонажа
+    local function getCharacter()
+        return LocalPlayer.Character
+    end
     
+    -- Функция для получения Humanoid
+    local function getHumanoid()
+        local char = getCharacter()
+        if char then
+            return char:FindFirstChild("Humanoid")
+        end
+        return nil
+    end
+    
+    -- Функция для получения HumanoidRootPart
+    local function getHRP()
+        local char = getCharacter()
+        if char then
+            return char:FindFirstChild("HumanoidRootPart")
+        end
+        return nil
+    end
+    
+    local flyBodyGyro = nil
+    local flyBodyVelocity = nil
     local FlyConnection = nil
-    local LoopConnection = nil
+    local LoopSpeedConnection = nil
+    local LoopJumpConnection = nil
     local InfJumpConnection = nil
-    
-    -- Обновление персонажа при респавне
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        Character = char
-        Humanoid = char:WaitForChild("Humanoid")
-        HRP = char:WaitForChild("HumanoidRootPart")
-        
-        -- Применить настройки заново
-        if Settings.CustomWalkSpeed then
-            Humanoid.WalkSpeed = Settings.WalkSpeed
-        end
-        if Settings.CustomJumpPower then
-            Humanoid.JumpPower = Settings.JumpPower
-        end
-    end)
+    local NoclipConnection = nil
     
     local Movement = Tab:AddLeftGroupbox("Movement")
     local FlyGroup = Tab:AddRightGroupbox("Fly")
     local Other = Tab:AddLeftGroupbox("Other")
     
-    -- Walk Speed
+    -- Применить WalkSpeed
+    local function applyWalkSpeed()
+        local hum = getHumanoid()
+        if hum then
+            if Settings.CustomWalkSpeed then
+                hum.WalkSpeed = Settings.WalkSpeed
+            else
+                hum.WalkSpeed = 16
+            end
+        end
+    end
+    
+    -- Применить JumpPower
+    local function applyJumpPower()
+        local hum = getHumanoid()
+        if hum then
+            if Settings.CustomJumpPower then
+                hum.JumpPower = Settings.JumpPower
+            else
+                hum.JumpPower = 50
+            end
+        end
+    end
+    
+    -- Custom WalkSpeed Toggle
     Movement:AddToggle("CustomWalkSpeed", {
         Text = "Custom Walk Speed",
         Default = false,
         Callback = function(v) 
             Settings.CustomWalkSpeed = v
-            if v then
-                Humanoid.WalkSpeed = Settings.WalkSpeed
-            else
-                Humanoid.WalkSpeed = 16
-            end
+            applyWalkSpeed()
         end
     })
     
+    -- WalkSpeed Slider
     Movement:AddSlider("WalkSpeed", {
         Text = "Walk Speed",
         Default = 16,
@@ -71,7 +100,7 @@ function Player:Initialize(Tab)
         Callback = function(v) 
             Settings.WalkSpeed = v
             if Settings.CustomWalkSpeed then
-                Humanoid.WalkSpeed = v
+                applyWalkSpeed()
             end
         end
     })
@@ -82,35 +111,32 @@ function Player:Initialize(Tab)
         Default = false,
         Callback = function(v) 
             Settings.LoopSpeed = v
+            if LoopSpeedConnection then
+                LoopSpeedConnection:Disconnect()
+                LoopSpeedConnection = nil
+            end
             if v then
-                LoopConnection = RunService.Heartbeat:Connect(function()
-                    if Humanoid and HRP then
-                        Humanoid.WalkSpeed = Settings.WalkSpeed
+                LoopSpeedConnection = RunService.RenderStepped:Connect(function()
+                    local hum = getHumanoid()
+                    if hum then
+                        hum.WalkSpeed = Settings.WalkSpeed
                     end
                 end)
-            else
-                if LoopConnection then
-                    LoopConnection:Disconnect()
-                    LoopConnection = nil
-                end
             end
         end
     })
     
-    -- Jump Power
+    -- Custom JumpPower Toggle
     Movement:AddToggle("CustomJumpPower", {
         Text = "Custom Jump Power",
         Default = false,
         Callback = function(v) 
             Settings.CustomJumpPower = v
-            if v then
-                Humanoid.JumpPower = Settings.JumpPower
-            else
-                Humanoid.JumpPower = 50
-            end
+            applyJumpPower()
         end
     })
     
+    -- JumpPower Slider
     Movement:AddSlider("JumpPower", {
         Text = "Jump Power",
         Default = 50,
@@ -120,7 +146,7 @@ function Player:Initialize(Tab)
         Callback = function(v) 
             Settings.JumpPower = v
             if Settings.CustomJumpPower then
-                Humanoid.JumpPower = v
+                applyJumpPower()
             end
         end
     })
@@ -131,17 +157,17 @@ function Player:Initialize(Tab)
         Default = false,
         Callback = function(v) 
             Settings.LoopJump = v
+            if LoopJumpConnection then
+                LoopJumpConnection:Disconnect()
+                LoopJumpConnection = nil
+            end
             if v then
-                LoopConnection = RunService.Heartbeat:Connect(function()
-                    if Humanoid and HRP then
-                        Humanoid.JumpPower = Settings.JumpPower
+                LoopJumpConnection = RunService.RenderStepped:Connect(function()
+                    local hum = getHumanoid()
+                    if hum then
+                        hum.JumpPower = Settings.JumpPower
                     end
                 end)
-            else
-                if LoopConnection then
-                    LoopConnection:Disconnect()
-                    LoopConnection = nil
-                end
             end
         end
     })
@@ -152,24 +178,100 @@ function Player:Initialize(Tab)
         Default = false,
         Callback = function(v) 
             Settings.InfJump = v
+            if InfJumpConnection then
+                InfJumpConnection:Disconnect()
+                InfJumpConnection = nil
+            end
             if v then
                 InfJumpConnection = UserInputService.JumpRequest:Connect(function()
-                    if Humanoid then
-                        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    local hum = getHumanoid()
+                    if hum then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
                     end
                 end)
-            else
-                if InfJumpConnection then
-                    InfJumpConnection:Disconnect()
-                    InfJumpConnection = nil
-                end
             end
         end
     })
     
     -- Fly
-    local flyBodyGyro = nil
-    local flyBodyVelocity = nil
+    local function stopFly()
+        if FlyConnection then
+            FlyConnection:Disconnect()
+            FlyConnection = nil
+        end
+        if flyBodyGyro then
+            flyBodyGyro:Destroy()
+            flyBodyGyro = nil
+        end
+        if flyBodyVelocity then
+            flyBodyVelocity:Destroy()
+            flyBodyVelocity = nil
+        end
+    end
+    
+    local function startFly()
+        local hrp = getHRP()
+        if not hrp then return end
+        
+        stopFly()
+        
+        flyBodyGyro = Instance.new("BodyGyro")
+        flyBodyGyro.P = 9e4
+        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyGyro.CFrame = hrp.CFrame
+        flyBodyGyro.Parent = hrp
+        
+        flyBodyVelocity = Instance.new("BodyVelocity")
+        flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyVelocity.Parent = hrp
+        
+        FlyConnection = RunService.RenderStepped:Connect(function()
+            local hrp = getHRP()
+            local hum = getHumanoid()
+            if not hrp or not hum then return end
+            
+            -- Обновляем родителя если нужно
+            if flyBodyGyro and flyBodyGyro.Parent ~= hrp then
+                flyBodyGyro.Parent = hrp
+            end
+            if flyBodyVelocity and flyBodyVelocity.Parent ~= hrp then
+                flyBodyVelocity.Parent = hrp
+            end
+            
+            hum.PlatformStand = true
+            
+            local camera = workspace.CurrentCamera
+            local moveDirection = Vector3.new()
+            
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                moveDirection += camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                moveDirection -= camera.CFrame.LookVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                moveDirection -= camera.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                moveDirection += camera.CFrame.RightVector
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                moveDirection += Vector3.new(0, 1, 0)
+            end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                moveDirection -= Vector3.new(0, 1, 0)
+            end
+            
+            if moveDirection.Magnitude > 0 then
+                flyBodyVelocity.Velocity = moveDirection.Unit * Settings.FlySpeed
+            else
+                flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            end
+            
+            flyBodyGyro.CFrame = camera.CFrame
+        end)
+    end
     
     FlyGroup:AddToggle("FlyEnabled", {
         Text = "Fly",
@@ -177,63 +279,13 @@ function Player:Initialize(Tab)
         Callback = function(v) 
             Settings.FlyEnabled = v
             if v then
-                -- Создаем BodyGyro и BodyVelocity
-                flyBodyGyro = Instance.new("BodyGyro")
-                flyBodyGyro.P = 9e4
-                flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-                flyBodyGyro.CFrame = HRP.CFrame
-                flyBodyGyro.Parent = HRP
-                
-                flyBodyVelocity = Instance.new("BodyVelocity")
-                flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-                flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                flyBodyVelocity.Parent = HRP
-                
-                -- Управление полетом
-                FlyConnection = RunService.Heartbeat:Connect(function()
-                    if not HRP or not Humanoid then return end
-                    
-                    local moveDirection = Vector3.new()
-                    
-                    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                        moveDirection += workspace.CurrentCamera.CFrame.LookVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                        moveDirection -= workspace.CurrentCamera.CFrame.LookVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                        moveDirection -= workspace.CurrentCamera.CFrame.RightVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                        moveDirection += workspace.CurrentCamera.CFrame.RightVector
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                        moveDirection += Vector3.new(0, 1, 0)
-                    end
-                    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                        moveDirection -= Vector3.new(0, 1, 0)
-                    end
-                    
-                    if moveDirection.Magnitude > 0 then
-                        moveDirection = moveDirection.Unit
-                    end
-                    
-                    flyBodyVelocity.Velocity = moveDirection * Settings.FlySpeed
-                    flyBodyGyro.CFrame = workspace.CurrentCamera.CFrame
-                end)
+                startFly()
             else
-                -- Удаляем fly
-                if FlyConnection then
-                    FlyConnection:Disconnect()
-                    FlyConnection = nil
-                end
-                if flyBodyGyro then
-                    flyBodyGyro:Destroy()
-                    flyBodyGyro = nil
-                end
-                if flyBodyVelocity then
-                    flyBodyVelocity:Destroy()
-                    flyBodyVelocity = nil
+                stopFly()
+                -- Убираем PlatformStand
+                local hum = getHumanoid()
+                if hum then
+                    hum.PlatformStand = false
                 end
             end
         end
@@ -251,17 +303,20 @@ function Player:Initialize(Tab)
     })
     
     -- NoClip
-    local noclipConnection = nil
-    
     Other:AddToggle("NoClip", {
         Text = "No Clip",
         Default = false,
         Callback = function(v) 
             Settings.NoClip = v
+            if NoclipConnection then
+                NoclipConnection:Disconnect()
+                NoclipConnection = nil
+            end
             if v then
-                noclipConnection = RunService.Stepped:Connect(function()
-                    if Character then
-                        for _, part in pairs(Character:GetDescendants()) do
+                NoclipConnection = RunService.RenderStepped:Connect(function()
+                    local char = getCharacter()
+                    if char then
+                        for _, part in pairs(char:GetDescendants()) do
                             if part:IsA("BasePart") then
                                 part.CanCollide = false
                             end
@@ -269,13 +324,9 @@ function Player:Initialize(Tab)
                     end
                 end)
             else
-                if noclipConnection then
-                    noclipConnection:Disconnect()
-                    noclipConnection = nil
-                end
-                -- Восстанавливаем коллизии
-                if Character then
-                    for _, part in pairs(Character:GetDescendants()) do
+                local char = getCharacter()
+                if char then
+                    for _, part in pairs(char:GetDescendants()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = true
                         end
@@ -285,18 +336,42 @@ function Player:Initialize(Tab)
         end
     })
     
+    -- Обработчик респавна
+    local characterAddedConnection
+    characterAddedConnection = LocalPlayer.CharacterAdded:Connect(function(char)
+        -- Ждём загрузки персонажа
+        char:WaitForChild("Humanoid")
+        char:WaitForChild("HumanoidRootPart")
+        
+        -- Применяем настройки
+        applyWalkSpeed()
+        applyJumpPower()
+        
+        -- Если fly был включен, перезапускаем
+        if Settings.FlyEnabled then
+            startFly()
+        end
+    end)
+    
     print("Player module loaded!")
     
     return {
         Cleanup = function()
             print("Player cleanup!")
-            -- Отключаем все соединения
-            if FlyConnection then FlyConnection:Disconnect() end
-            if LoopConnection then LoopConnection:Disconnect() end
+            stopFly()
+            if LoopSpeedConnection then LoopSpeedConnection:Disconnect() end
+            if LoopJumpConnection then LoopJumpConnection:Disconnect() end
             if InfJumpConnection then InfJumpConnection:Disconnect() end
-            if noclipConnection then noclipConnection:Disconnect() end
-            if flyBodyGyro then flyBodyGyro:Destroy() end
-            if flyBodyVelocity then flyBodyVelocity:Destroy() end
+            if NoclipConnection then NoclipConnection:Disconnect() end
+            if characterAddedConnection then characterAddedConnection:Disconnect() end
+            
+            -- Сбрасываем всё
+            local hum = getHumanoid()
+            if hum then
+                hum.WalkSpeed = 16
+                hum.JumpPower = 50
+                hum.PlatformStand = false
+            end
         end
     }
 end
