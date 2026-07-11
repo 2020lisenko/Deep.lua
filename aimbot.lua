@@ -1,233 +1,402 @@
-local ESP = {}
-ESP.__index = ESP
+local Aimbot = {}
+Aimbot.__index = Aimbot
 
-function ESP:Initialize(Tab)
-    local self = setmetatable({}, ESP)
+function Aimbot:Initialize(Tab)
+    local self = setmetatable({}, Aimbot)
     
-    if not getgenv().DeepESP then
-        getgenv().DeepESP = {}
+    if not getgenv().Deep then
+        getgenv().Deep = {
+            Settings = {},
+            FOVSettings = {},
+            Functions = {}
+        }
     end
     
-    self.ESPEnv = getgenv().DeepESP
-    self.Players = game:GetService("Players")
-    self.LocalPlayer = self.Players.LocalPlayer
-    self.ESP_DB = false
-    self.Active = false
+    self.Env = getgenv().Deep
+    self.Connections = {}
+    self.Running = false
+    self.Typing = false
+    self.Locked = nil
+    self.Animation = nil
+    
+    self.Services = {
+        RunService = game:GetService("RunService"),
+        UserInputService = game:GetService("UserInputService"),
+        TweenService = game:GetService("TweenService"),
+        Players = game:GetService("Players"),
+        Camera = workspace.CurrentCamera,
+        LocalPlayer = game:GetService("Players").LocalPlayer
+    }
     
     self:LoadDefaultSettings()
     self:CreateUI(Tab)
+    self.FOVCircle = Drawing.new("Circle")
+    self:SetupConnections()
     
     return self
 end
 
-function ESP:LoadDefaultSettings()
-    self.ESPEnv.Settings = {
+function Aimbot:LoadDefaultSettings()
+    self.Env.Settings = {
         Enabled = false,
         TeamCheck = false,
-        PlayerName = "Name",
-        FillTransparency = 0.5,
-        OutlineTransparency = 0,
-        TextSize = 18,
-        TextFont = "SciFi",
-        ShowDistance = true,
-        UseTeamColor = true,
+        AliveCheck = true,
+        WallCheck = false,
+        Sensitivity = 0,
+        ThirdPerson = false,
+        ThirdPersonSensitivity = 3,
+        TriggerKey = "MouseButton2",
+        Toggle = false,
+        LockPart = "Head",
+        MaxDistance = 2000
+    }
+    
+    self.Env.FOVSettings = {
+        Enabled = false,
+        Visible = true,
+        Amount = 90,
+        Color = Color3.fromRGB(255, 255, 255),
+        LockedColor = Color3.fromRGB(255, 70, 70),
+        Transparency = 0.5,
+        Sides = 60,
+        Thickness = 1,
+        Filled = false
     }
 end
 
-function ESP:UpdateESP()
-    local settings = self.ESPEnv.Settings
+function Aimbot:CancelLock()
+    self.Locked = nil
+    if self.Animation then 
+        self.Animation:Cancel() 
+    end
+    if self.FOVCircle then
+        self.FOVCircle.Color = self.Env.FOVSettings.Color
+    end
+end
+
+function Aimbot:GetClosestPlayer()
+    local settings = self.Env.Settings
+    local maxDist = settings.MaxDistance
     
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player ~= self.LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local localHRP = self.LocalPlayer.Character and self.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            
-            if hrp and localHRP then
-                local distance = math.floor((localHRP.Position - hrp.Position).magnitude)
-                local shouldShow = true
-                
-                if settings.TeamCheck and player.Team == self.LocalPlayer.Team then
-                    shouldShow = false
-                end
-                
-                if shouldShow then
-                    if not player.Character:FindFirstChild("DeepESP_Highlight") then
-                        local highlight = Instance.new("Highlight")
-                        highlight.Name = "DeepESP_Highlight"
-                        highlight.Adornee = player.Character
-                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        highlight.FillColor = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
-                        highlight.FillTransparency = settings.FillTransparency
-                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        highlight.OutlineTransparency = settings.OutlineTransparency
-                        highlight.Enabled = settings.Enabled
-                        highlight.Parent = player.Character
-                        
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Name = "DeepESP_Icon"
-                        billboard.AlwaysOnTop = true
-                        billboard.Size = UDim2.new(0, 800, 0, 50)
-                        billboard.Enabled = settings.Enabled
-                        billboard.Parent = player.Character
-                        
-                        local textLabel = Instance.new("TextLabel")
-                        textLabel.Name = "DeepESP_Text"
-                        textLabel.BackgroundTransparency = 1
-                        textLabel.Size = UDim2.new(0, 800, 0, 50)
-                        textLabel.Font = Enum.Font[settings.TextFont]
-                        textLabel.TextColor3 = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
-                        textLabel.TextSize = settings.TextSize
-                        textLabel.TextWrapped = true
-                        textLabel.Parent = billboard
+    if self.Env.FOVSettings.Enabled then
+        maxDist = self.Env.FOVSettings.Amount
+    end
+    
+    if not self.Locked then
+        maxDist = self.Env.FOVSettings.Enabled and self.Env.FOVSettings.Amount or 2000
+        
+        for _, player in ipairs(self.Services.Players:GetPlayers()) do
+            if player ~= self.Services.LocalPlayer then
+                local character = player.Character
+                if character and character:FindFirstChild(settings.LockPart) and character:FindFirstChildOfClass("Humanoid") then
+                    if settings.TeamCheck and player.Team == self.Services.LocalPlayer.Team then
+                        continue
+                    end
+                    if settings.AliveCheck and character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+                        continue
+                    end
+                    if settings.WallCheck then
+                        local parts = self.Services.Camera:GetPartsObscuringTarget(
+                            {character[settings.LockPart].Position}, 
+                            character:GetDescendants()
+                        )
+                        if #parts > 0 then
+                            continue
+                        end
                     end
                     
-                    local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-                    local icon = player.Character:FindFirstChild("DeepESP_Icon")
+                    local vector, onScreen = self.Services.Camera:WorldToViewportPoint(
+                        character[settings.LockPart].Position
+                    )
                     
-                    if highlight and icon then
-                        highlight.Enabled = settings.Enabled
-                        icon.Enabled = settings.Enabled
+                    if onScreen then
+                        local mousePos = self.Services.UserInputService:GetMouseLocation()
+                        local distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
                         
-                        if settings.UseTeamColor then
-                            highlight.FillColor = player.TeamColor.Color
-                            icon["DeepESP_Text"].TextColor3 = player.TeamColor.Color
+                        if distance < maxDist then
+                            maxDist = distance
+                            self.Locked = player
                         end
-                        
-                        highlight.FillTransparency = settings.FillTransparency
-                        highlight.OutlineTransparency = settings.OutlineTransparency
-                        icon["DeepESP_Text"].TextSize = settings.TextSize
-                        icon["DeepESP_Text"].Font = Enum.Font[settings.TextFont]
-                        
-                        local text = player[settings.PlayerName]
-                        if settings.ShowDistance then
-                            text = text .. " | Distance: " .. distance
-                        end
-                        icon["DeepESP_Text"].Text = text
                     end
                 end
             end
         end
-    end
-end
-
-function ESP:RemoveESP()
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player.Character then
-            local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-            local icon = player.Character:FindFirstChild("DeepESP_Icon")
+    else
+        if self.Locked.Character and self.Locked.Character:FindFirstChild(settings.LockPart) then
+            local vector = self.Services.Camera:WorldToViewportPoint(
+                self.Locked.Character[settings.LockPart].Position
+            )
+            local mousePos = self.Services.UserInputService:GetMouseLocation()
+            local distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
             
-            if highlight then highlight:Destroy() end
-            if icon then icon:Destroy() end
+            if distance > maxDist then
+                self:CancelLock()
+            end
+        else
+            self:CancelLock()
         end
     end
 end
 
-function ESP:StartESP()
-    self.Active = true
-    task.spawn(function()
-        while self.Active and self.ESPEnv.Settings.Enabled do
-            if not self.ESP_DB then
-                self.ESP_DB = true
-                pcall(function()
-                    self:UpdateESP()
-                end)
-                self.ESP_DB = false
+function Aimbot:UpdateAimbot()
+    if not self.Running or not self.Env.Settings.Enabled then return end
+    
+    self:GetClosestPlayer()
+    
+    if self.Locked and self.Locked.Character then
+        local targetPart = self.Locked.Character:FindFirstChild(self.Env.Settings.LockPart)
+        if not targetPart then return end
+        
+        if self.Env.Settings.ThirdPerson then
+            local sensitivity = math.clamp(self.Env.Settings.ThirdPersonSensitivity, 0.1, 5)
+            local vector = self.Services.Camera:WorldToViewportPoint(targetPart.Position)
+            local mousePos = self.Services.UserInputService:GetMouseLocation()
+            
+            mousemoverel(
+                (vector.X - mousePos.X) * sensitivity,
+                (vector.Y - mousePos.Y) * sensitivity
+            )
+        else
+            if self.Env.Settings.Sensitivity > 0 then
+                self.Animation = self.Services.TweenService:Create(
+                    self.Services.Camera,
+                    TweenInfo.new(self.Env.Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+                    {CFrame = CFrame.new(self.Services.Camera.CFrame.Position, targetPart.Position)}
+                )
+                self.Animation:Play()
+            else
+                self.Services.Camera.CFrame = CFrame.new(
+                    self.Services.Camera.CFrame.Position, 
+                    targetPart.Position
+                )
             end
-            task.wait()
+        end
+        
+        if self.FOVCircle then
+            self.FOVCircle.Color = self.Env.FOVSettings.LockedColor
+        end
+    end
+end
+
+function Aimbot:UpdateFOV()
+    if not self.FOVCircle then return end
+    
+    if self.Env.FOVSettings.Enabled and self.Env.Settings.Enabled then
+        self.FOVCircle.Radius = self.Env.FOVSettings.Amount
+        self.FOVCircle.Thickness = self.Env.FOVSettings.Thickness
+        self.FOVCircle.Filled = self.Env.FOVSettings.Filled
+        self.FOVCircle.NumSides = self.Env.FOVSettings.Sides
+        self.FOVCircle.Color = self.Env.FOVSettings.Color
+        self.FOVCircle.Transparency = self.Env.FOVSettings.Transparency
+        self.FOVCircle.Visible = self.Env.FOVSettings.Visible
+        
+        local mousePos = self.Services.UserInputService:GetMouseLocation()
+        self.FOVCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
+    else
+        self.FOVCircle.Visible = false
+    end
+end
+
+function Aimbot:SetupConnections()
+    self:DisconnectAll()
+    
+    self.Connections.TypingStarted = self.Services.UserInputService.TextBoxFocused:Connect(function()
+        self.Typing = true
+    end)
+    
+    self.Connections.TypingEnded = self.Services.UserInputService.TextBoxFocusReleased:Connect(function()
+        self.Typing = false
+    end)
+    
+    self.Connections.RenderStepped = self.Services.RunService.RenderStepped:Connect(function()
+        self:UpdateFOV()
+        self:UpdateAimbot()
+    end)
+    
+    self.Connections.InputBegan = self.Services.UserInputService.InputBegan:Connect(function(input)
+        if self.Typing then return end
+        
+        local triggered = false
+        pcall(function()
+            triggered = input.KeyCode == Enum.KeyCode[self.Env.Settings.TriggerKey]
+        end)
+        if not triggered then
+            pcall(function()
+                triggered = input.UserInputType == Enum.UserInputType[self.Env.Settings.TriggerKey]
+            end)
+        end
+        
+        if triggered then
+            if self.Env.Settings.Toggle then
+                self.Running = not self.Running
+                if not self.Running then self:CancelLock() end
+            else
+                self.Running = true
+            end
+        end
+    end)
+    
+    self.Connections.InputEnded = self.Services.UserInputService.InputEnded:Connect(function(input)
+        if self.Typing or self.Env.Settings.Toggle then return end
+        
+        local triggered = false
+        pcall(function()
+            triggered = input.KeyCode == Enum.KeyCode[self.Env.Settings.TriggerKey]
+        end)
+        if not triggered then
+            pcall(function()
+                triggered = input.UserInputType == Enum.UserInputType[self.Env.Settings.TriggerKey]
+            end)
+        end
+        
+        if triggered then
+            self.Running = false
+            self:CancelLock()
         end
     end)
 end
 
-function ESP:StopESP()
-    self.Active = false
-    self.ESPEnv.Settings.Enabled = false
-    self:RemoveESP()
+function Aimbot:DisconnectAll()
+    for _, connection in pairs(self.Connections) do
+        if connection then
+            connection:Disconnect()
+        end
+    end
+    self.Connections = {}
 end
 
-function ESP:CreateUI(Tab)
-    local Main = Tab:AddLeftGroupbox("ESP Settings")
-    local Visuals = Tab:AddRightGroupbox("ESP Visuals")
+function Aimbot:CreateUI(Tab)
+    local Main = Tab:AddLeftGroupbox("Main Settings")
+    local Right = Tab:AddRightGroupbox("Aim Settings")
+    local FOV = Tab:AddRightGroupbox("FOV Settings")
     
-    Main:AddToggle("DeepESPEnabled", {
+    Main:AddToggle("DeepAimbotEnabled", {
         Text = "Enabled",
         Default = false,
-        Callback = function(v) 
-            self.ESPEnv.Settings.Enabled = v
-            if v then
-                self:StartESP()
-            else
-                self:StopESP()
-            end
-        end
+        Callback = function(v) self.Env.Settings.Enabled = v end
     })
     
-    Main:AddToggle("ESPTeamCheck", {
-        Text = "Team Check",
+    Main:AddDropdown("LockPart", {
+        Values = {"Head", "HumanoidRootPart", "Torso", "UpperTorso"},
+        Default = "Head",
+        Text = "Lock Part",
+        Callback = function(v) self.Env.Settings.LockPart = v end
+    })
+    
+    Main:AddDropdown("TriggerKey", {
+        Values = {"MouseButton1", "MouseButton2", "E", "Q", "F", "T", "Shift", "Control"},
+        Default = "MouseButton2",
+        Text = "Trigger Key",
+        Callback = function(v) self.Env.Settings.TriggerKey = v end
+    })
+    
+    Main:AddToggle("ToggleMode", {
+        Text = "Toggle Mode",
         Default = false,
         Callback = function(v) 
-            self.ESPEnv.Settings.TeamCheck = v
-            self:RemoveESP()
+            self.Env.Settings.Toggle = v
+            self:SetupConnections()
         end
     })
     
-    Main:AddDropdown("ESPPlayerName", {
-        Values = {"Name", "DisplayName"},
-        Default = "Name",
-        Text = "Player Name Type",
-        Callback = function(v) self.ESPEnv.Settings.PlayerName = v end
+    Main:AddToggle("TeamCheck", {
+        Text = "Team Check",
+        Default = false,
+        Callback = function(v) self.Env.Settings.TeamCheck = v end
     })
     
-    Main:AddToggle("ESPShowDistance", {
-        Text = "Show Distance",
+    Main:AddToggle("AliveCheck", {
+        Text = "Alive Check",
         Default = true,
-        Callback = function(v) self.ESPEnv.Settings.ShowDistance = v end
+        Callback = function(v) self.Env.Settings.AliveCheck = v end
     })
     
-    Main:AddToggle("ESPUseTeamColor", {
-        Text = "Use Team Color",
-        Default = true,
-        Callback = function(v) 
-            self.ESPEnv.Settings.UseTeamColor = v
-            self:RemoveESP()
-        end
+    Main:AddToggle("WallCheck", {
+        Text = "Wall Check",
+        Default = false,
+        Callback = function(v) self.Env.Settings.WallCheck = v end
     })
     
-    Visuals:AddSlider("ESPFillTransparency", {
-        Text = "Fill Transparency",
-        Default = 0.5,
-        Min = 0,
-        Max = 1,
-        Rounding = 2,
-        Callback = function(v) self.ESPEnv.Settings.FillTransparency = v end
-    })
-    
-    Visuals:AddSlider("ESPOutlineTransparency", {
-        Text = "Outline Transparency",
+    Right:AddSlider("Sensitivity", {
+        Text = "Smoothness",
         Default = 0,
         Min = 0,
         Max = 1,
         Rounding = 2,
-        Callback = function(v) self.ESPEnv.Settings.OutlineTransparency = v end
+        Callback = function(v) self.Env.Settings.Sensitivity = v end
     })
     
-    Visuals:AddSlider("ESPTextSize", {
-        Text = "Text Size",
-        Default = 18,
+    Right:AddToggle("ThirdPerson", {
+        Text = "Third Person Mode",
+        Default = false,
+        Callback = function(v) 
+            self.Env.Settings.ThirdPerson = v
+            self:SetupConnections()
+        end
+    })
+    
+    Right:AddSlider("ThirdPersonSensitivity", {
+        Text = "Third Person Sensitivity",
+        Default = 3,
+        Min = 0.1,
+        Max = 5,
+        Rounding = 1,
+        Callback = function(v) self.Env.Settings.ThirdPersonSensitivity = v end
+    })
+    
+    FOV:AddToggle("FOVEnabled", {
+        Text = "Show FOV Circle",
+        Default = false,
+        Callback = function(v) self.Env.FOVSettings.Enabled = v end
+    })
+    
+    FOV:AddSlider("FOVAmount", {
+        Text = "FOV Size",
+        Default = 90,
         Min = 10,
-        Max = 30,
-        Callback = function(v) self.ESPEnv.Settings.TextSize = v end
+        Max = 500,
+        Callback = function(v) self.Env.FOVSettings.Amount = v end
     })
     
-    Visuals:AddDropdown("ESPTextFont", {
-        Values = {"SciFi", "Arial", "Fantasy", "Gotham", "Legacy", "SourceSans"},
-        Default = "SciFi",
-        Text = "Text Font",
-        Callback = function(v) self.ESPEnv.Settings.TextFont = v end
+    FOV:AddSlider("FOVTransparency", {
+        Text = "Transparency",
+        Default = 0.5,
+        Min = 0,
+        Max = 1,
+        Rounding = 2,
+        Callback = function(v) self.Env.FOVSettings.Transparency = v end
+    })
+    
+    FOV:AddSlider("FOVThickness", {
+        Text = "Thickness",
+        Default = 1,
+        Min = 1,
+        Max = 10,
+        Callback = function(v) self.Env.FOVSettings.Thickness = v end
+    })
+    
+    FOV:AddToggle("FOVFilled", {
+        Text = "Filled Circle",
+        Default = false,
+        Callback = function(v) self.Env.FOVSettings.Filled = v end
+    })
+    
+    FOV:AddLabel("FOV Color"):AddColorPicker("FOVColor", {
+        Default = Color3.fromRGB(255, 255, 255),
+        Callback = function(v) self.Env.FOVSettings.Color = v end
+    })
+    
+    FOV:AddLabel("Locked FOV Color"):AddColorPicker("FOVLockedColor", {
+        Default = Color3.fromRGB(255, 70, 70),
+        Callback = function(v) self.Env.FOVSettings.LockedColor = v end
     })
 end
 
-function ESP:Cleanup()
-    self:StopESP()
+function Aimbot:Cleanup()
+    self:DisconnectAll()
+    if self.FOVCircle and self.FOVCircle.Remove then
+        self.FOVCircle:Remove()
+    end
 end
 
-return ESP
+return Aimbot
