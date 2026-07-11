@@ -105,6 +105,10 @@ function Visuals:ApplyNoFog()
         self.Lighting.FogColor = self.VisualsEnv.Settings.FogColor
         self.Lighting.FogStart = self.VisualsEnv.Settings.FogStart
         self.Lighting.FogEnd = self.VisualsEnv.Settings.FogEnd
+    else
+        self.Lighting.FogEnd = self.OriginalValues.FogEnd
+        self.Lighting.FogStart = self.OriginalValues.FogStart
+        self.Lighting.FogColor = self.OriginalValues.FogColor or Color3.fromRGB(192, 192, 192)
     end
 end
 
@@ -114,6 +118,9 @@ function Visuals:ApplyNoShadows()
     elseif self.VisualsEnv.Settings.CustomShadows then
         self.Lighting.GlobalShadows = true
         self.Lighting.ShadowSoftness = self.VisualsEnv.Settings.ShadowSoftness
+    else
+        self.Lighting.GlobalShadows = self.OriginalValues.GlobalShadows
+        self.Lighting.ShadowSoftness = self.OriginalValues.ShadowSoftness
     end
 end
 
