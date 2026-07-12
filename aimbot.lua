@@ -43,8 +43,6 @@ function Aimbot:LoadDefaultSettings()
         AliveCheck = true,
         WallCheck = false,
         Sensitivity = 0,
-        ThirdPerson = false,
-        ThirdPersonSensitivity = 3,
         TriggerKey = "MouseButton2",
         Toggle = false,
         LockPart = "Head",
@@ -146,29 +144,18 @@ function Aimbot:UpdateAimbot()
         local targetPart = self.Locked.Character:FindFirstChild(self.Env.Settings.LockPart)
         if not targetPart then return end
         
-        if self.Env.Settings.ThirdPerson then
-            local sensitivity = math.clamp(self.Env.Settings.ThirdPersonSensitivity, 0.1, 5)
-            local vector = self.Services.Camera:WorldToViewportPoint(targetPart.Position)
-            local mousePos = self.Services.UserInputService:GetMouseLocation()
-            
-            mousemoverel(
-                (vector.X - mousePos.X) * sensitivity,
-                (vector.Y - mousePos.Y) * sensitivity
+        if self.Env.Settings.Sensitivity > 0 then
+            self.Animation = self.Services.TweenService:Create(
+                self.Services.Camera,
+                TweenInfo.new(self.Env.Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+                {CFrame = CFrame.new(self.Services.Camera.CFrame.Position, targetPart.Position)}
             )
+            self.Animation:Play()
         else
-            if self.Env.Settings.Sensitivity > 0 then
-                self.Animation = self.Services.TweenService:Create(
-                    self.Services.Camera,
-                    TweenInfo.new(self.Env.Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-                    {CFrame = CFrame.new(self.Services.Camera.CFrame.Position, targetPart.Position)}
-                )
-                self.Animation:Play()
-            else
-                self.Services.Camera.CFrame = CFrame.new(
-                    self.Services.Camera.CFrame.Position, 
-                    targetPart.Position
-                )
-            end
+            self.Services.Camera.CFrame = CFrame.new(
+                self.Services.Camera.CFrame.Position, 
+                targetPart.Position
+            )
         end
         
         if self.FOVCircle then
@@ -265,9 +252,8 @@ function Aimbot:DisconnectAll()
 end
 
 function Aimbot:CreateUI(Tab)
-    local Main = Tab:AddLeftGroupbox("Main Settings")
-    local Right = Tab:AddRightGroupbox("Aim Settings")
-    local FOV = Tab:AddRightGroupbox("FOV Settings")
+    local Main = Tab:AddLeftGroupbox("Aimbot")
+    local Right = Tab:AddRightGroupbox("FOV & Sensitivity")
     
     Main:AddToggle("DeepAimbotEnabled", {
         Text = "Enabled",
@@ -325,31 +311,13 @@ function Aimbot:CreateUI(Tab)
         Callback = function(v) self.Env.Settings.Sensitivity = v end
     })
     
-    Right:AddToggle("ThirdPerson", {
-        Text = "Third Person Mode",
-        Default = false,
-        Callback = function(v) 
-            self.Env.Settings.ThirdPerson = v
-            self:SetupConnections()
-        end
-    })
-    
-    Right:AddSlider("ThirdPersonSensitivity", {
-        Text = "Third Person Sensitivity",
-        Default = 3,
-        Min = 0.1,
-        Max = 5,
-        Rounding = 1,
-        Callback = function(v) self.Env.Settings.ThirdPersonSensitivity = v end
-    })
-    
-    FOV:AddToggle("FOVEnabled", {
+    Right:AddToggle("FOVEnabled", {
         Text = "Show FOV Circle",
         Default = false,
         Callback = function(v) self.Env.FOVSettings.Enabled = v end
     })
     
-    FOV:AddSlider("FOVAmount", {
+    Right:AddSlider("FOVAmount", {
         Text = "FOV Size",
         Default = 90,
         Min = 10,
@@ -357,7 +325,7 @@ function Aimbot:CreateUI(Tab)
         Callback = function(v) self.Env.FOVSettings.Amount = v end
     })
     
-    FOV:AddSlider("FOVTransparency", {
+    Right:AddSlider("FOVTransparency", {
         Text = "Transparency",
         Default = 0.5,
         Min = 0,
@@ -366,7 +334,7 @@ function Aimbot:CreateUI(Tab)
         Callback = function(v) self.Env.FOVSettings.Transparency = v end
     })
     
-    FOV:AddSlider("FOVThickness", {
+    Right:AddSlider("FOVThickness", {
         Text = "Thickness",
         Default = 1,
         Min = 1,
@@ -374,18 +342,18 @@ function Aimbot:CreateUI(Tab)
         Callback = function(v) self.Env.FOVSettings.Thickness = v end
     })
     
-    FOV:AddToggle("FOVFilled", {
+    Right:AddToggle("FOVFilled", {
         Text = "Filled Circle",
         Default = false,
         Callback = function(v) self.Env.FOVSettings.Filled = v end
     })
     
-    FOV:AddLabel("FOV Color"):AddColorPicker("FOVColor", {
+    Right:AddLabel("FOV Color"):AddColorPicker("FOVColor", {
         Default = Color3.fromRGB(255, 255, 255),
         Callback = function(v) self.Env.FOVSettings.Color = v end
     })
     
-    FOV:AddLabel("Locked FOV Color"):AddColorPicker("FOVLockedColor", {
+    Right:AddLabel("Locked FOV Color"):AddColorPicker("FOVLockedColor", {
         Default = Color3.fromRGB(255, 70, 70),
         Callback = function(v) self.Env.FOVSettings.LockedColor = v end
     })
