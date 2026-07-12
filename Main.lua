@@ -57,7 +57,7 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
-    Aimbot = Window:AddTab("Aimbot", "crosshair"),
+    Combat = Window:AddTab("Combat", "swords"),
     ESP = Window:AddTab("ESP", "eye"),
     Visuals = Window:AddTab("Visuals", "palette"),
     Player = Window:AddTab("Player", "user"),
@@ -74,18 +74,9 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
-print("Loading modules...")
-local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
-local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
-local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
-local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
-print("All modules loaded!")
-
--- Создаем ватермарку
 local Watermark = Library:AddDraggableLabel("Deep.lua | 60 fps | 0 ms", 11717093063, "Left")
 Watermark:SetVisible(true)
 
--- Обновление FPS и пинга
 local FrameTimer = tick()
 local FrameCounter = 0
 local FPS = 60
@@ -105,6 +96,14 @@ local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(
         ping
     ))
 end)
+
+print("Loading modules...")
+local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Combat)
+local HitboxModule = ModuleLoader:LoadModule("hitbox", Tabs.Combat)
+local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
+local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
+local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
+print("All modules loaded!")
 
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
