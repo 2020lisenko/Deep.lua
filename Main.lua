@@ -48,7 +48,6 @@ function ModuleLoader:CleanupAll()
     self.LoadedModules = {}
 end
 
--- Сначала создаем главное окно
 local Window = Library:CreateWindow({
     Title = "Deep.lua",
     Footer = "version: 1.67 | by Zeptome",
@@ -65,75 +64,6 @@ local Tabs = {
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
--- Создаем окно загрузки
-local Loading = Library:CreateLoading({
-    Title = "Deep.lua",
-    Icon = 11717093063,
-    TotalSteps = 5,
-    ShowSidebar = true,
-})
-
--- Шаг 1: Инициализация
-Loading:SetMessage("Initializing Deep.lua")
-Loading:SetDescription("Preparing environment...")
-Loading:SetCurrentStep(1)
-Loading.Sidebar:AddLabel("Version: 1.67")
-Loading.Sidebar:AddLabel("User: " .. game.Players.LocalPlayer.Name)
-Loading.Sidebar:AddLabel("Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name)
-task.wait(0.8)
-
--- Шаг 2: Загрузка Aimbot
-Loading:SetMessage("Loading Aimbot Module")
-Loading:SetDescription("Fetching aimbot.lua...")
-Loading:SetCurrentStep(2)
-Loading.Sidebar:AddLabel("Aimbot: Loading...")
-local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
-if AimbotModule then
-    Loading.Sidebar:AddLabel("Aimbot: Loaded!")
-else
-    Loading.Sidebar:AddLabel("Aimbot: Failed!")
-end
-task.wait(0.5)
-
--- Шаг 3: Загрузка ESP
-Loading:SetMessage("Loading ESP Module")
-Loading:SetDescription("Fetching esp.lua...")
-Loading:SetCurrentStep(3)
-Loading.Sidebar:AddLabel("ESP: Loading...")
-local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
-if ESPModule then
-    Loading.Sidebar:AddLabel("ESP: Loaded!")
-else
-    Loading.Sidebar:AddLabel("ESP: Failed!")
-end
-task.wait(0.5)
-
--- Шаг 4: Загрузка Visuals
-Loading:SetMessage("Loading Visuals Module")
-Loading:SetDescription("Fetching visuals.lua...")
-Loading:SetCurrentStep(4)
-Loading.Sidebar:AddLabel("Visuals: Loading...")
-local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
-if VisualsModule then
-    Loading.Sidebar:AddLabel("Visuals: Loaded!")
-else
-    Loading.Sidebar:AddLabel("Visuals: Failed!")
-end
-task.wait(0.5)
-
--- Шаг 5: Загрузка Player
-Loading:SetMessage("Loading Player Module")
-Loading:SetDescription("Fetching player.lua...")
-Loading:SetCurrentStep(5)
-Loading.Sidebar:AddLabel("Player: Loading...")
-local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
-if PlayerModule then
-    Loading.Sidebar:AddLabel("Player: Loaded!")
-else
-    Loading.Sidebar:AddLabel("Player: Failed!")
-end
-task.wait(0.5)
-
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -144,7 +74,38 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
--- UI Settings
+print("Loading modules...")
+local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
+local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
+local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
+local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
+print("All modules loaded!")
+
+-- Создаем ватермарку
+local Watermark = Library:AddDraggableLabel("Deep.lua | 60 fps | 0 ms", 11717093063, "Left")
+Watermark:SetVisible(true)
+
+-- Обновление FPS и пинга
+local FrameTimer = tick()
+local FrameCounter = 0
+local FPS = 60
+
+local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(function()
+    FrameCounter += 1
+    if (tick() - FrameTimer) >= 1 then
+        FPS = FrameCounter
+        FrameTimer = tick()
+        FrameCounter = 0
+    end
+    
+    local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+    
+    Watermark:SetText(("Deep.lua | %s fps | %s ms"):format(
+        math.floor(FPS),
+        ping
+    ))
+end)
+
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
@@ -160,6 +121,14 @@ MenuGroup:AddToggle("ShowCustomCursor", {
     Default = Library.ShowCustomCursor,
     Callback = function(Value)
         Library.ShowCustomCursor = Value
+    end,
+})
+
+MenuGroup:AddToggle("ShowWatermark", {
+    Text = "Show Watermark",
+    Default = true,
+    Callback = function(Value)
+        Watermark:SetVisible(Value)
     end,
 })
 
@@ -202,6 +171,8 @@ MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
 })
 
 MenuGroup:AddButton("Unload", function()
+    WatermarkConnection:Disconnect()
+    Watermark:Destroy()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
@@ -212,19 +183,14 @@ end)
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Применяем тему Material
 ThemeManager:ApplyTheme("Material")
-
--- Завершаем загрузку и показываем главное окно
-Loading:SetMessage("Deep.lua Loaded!")
-Loading:SetDescription("Welcome, " .. game.Players.LocalPlayer.Name .. "!")
-task.wait(1)
-Loading:Continue()
 
 SaveManager:LoadAutoloadConfig()
 
 Library:OnUnload(function()
     print("Deep.lua unloaded!")
+    WatermarkConnection:Disconnect()
+    Watermark:Destroy()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
