@@ -30,12 +30,12 @@ function ESP:LoadDefaultSettings()
         Enabled = false,
         TeamCheck = false,
         PlayerName = "Name",
-        TextSize = 18,
+        TextSize = 13,
         ShowDistance = true,
         ShowHealth = true,
         ShowName = true,
         UseTeamColor = true,
-        MaxDistance = 10000,
+        MaxDistance = 1000,
         UseMaxDistance = true,
         BOX_WIDTH = 55,
         MIN_BOX_HEIGHT = 25,
@@ -45,14 +45,6 @@ function ESP:LoadDefaultSettings()
         SMOOTH_FACTOR = 0.6,
         USE_GRADIENT = true,
     }
-end
-
-function ESP:GetPlayerHealth(player)
-    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        return math.floor(humanoid.Health), math.floor(humanoid.MaxHealth)
-    end
-    return 0, 0
 end
 
 function ESP:lerp(current, target, factor)
@@ -122,22 +114,24 @@ function ESP:createDrawingESP()
     esp.hpFill.Filled = true
     esp.hpFill.Transparency = 1
     
+    local textSize = self.ESPEnv.Settings.TextSize
+    
     esp.nameText.Visible = false
-    esp.nameText.Size = self.ESPEnv.Settings.TextSize
+    esp.nameText.Size = textSize
     esp.nameText.Center = true
     esp.nameText.Outline = true
     esp.nameText.OutlineColor = Color3.fromRGB(0, 0, 0)
     esp.nameText.Font = 2
     
     esp.distText.Visible = false
-    esp.distText.Size = self.ESPEnv.Settings.TextSize - 1
+    esp.distText.Size = textSize - 1
     esp.distText.Center = true
     esp.distText.Outline = true
     esp.distText.OutlineColor = Color3.fromRGB(0, 0, 0)
     esp.distText.Font = 2
     
     esp.weaponText.Visible = false
-    esp.weaponText.Size = self.ESPEnv.Settings.TextSize - 2
+    esp.weaponText.Size = textSize - 2
     esp.weaponText.Center = true
     esp.weaponText.Outline = true
     esp.weaponText.OutlineColor = Color3.fromRGB(0, 0, 0)
@@ -145,7 +139,7 @@ function ESP:createDrawingESP()
     esp.weaponText.Font = 2
     
     esp.healthText.Visible = false
-    esp.healthText.Size = self.ESPEnv.Settings.TextSize - 2
+    esp.healthText.Size = textSize - 2
     esp.healthText.Center = true
     esp.healthText.Outline = true
     esp.healthText.OutlineColor = Color3.fromRGB(0, 0, 0)
@@ -177,19 +171,19 @@ end
 
 function ESP:removeDrawingESP(esp)
     if not esp then return end
-    esp.top:Remove()
-    esp.bottom:Remove()
-    esp.left:Remove()
-    esp.right:Remove()
-    esp.hpBg:Remove()
-    esp.hpFill:Remove()
-    esp.nameText:Remove()
-    esp.distText:Remove()
-    esp.weaponText:Remove()
-    esp.healthText:Remove()
+    pcall(function() esp.top:Remove() end)
+    pcall(function() esp.bottom:Remove() end)
+    pcall(function() esp.left:Remove() end)
+    pcall(function() esp.right:Remove() end)
+    pcall(function() esp.hpBg:Remove() end)
+    pcall(function() esp.hpFill:Remove() end)
+    pcall(function() esp.nameText:Remove() end)
+    pcall(function() esp.distText:Remove() end)
+    pcall(function() esp.weaponText:Remove() end)
+    pcall(function() esp.healthText:Remove() end)
 end
 
-function ESP:getHeightBounds(character, humanoid)
+function ESP:getHeightBounds(character)
     local head = character:FindFirstChild("Head")
     if not head then return nil end
     
@@ -321,7 +315,7 @@ function ESP:UpdateESP()
             self.playerESP[player] = self:createDrawingESP()
         end
         
-        local bounds = self:getHeightBounds(character, humanoid)
+        local bounds = self:getHeightBounds(character)
         if bounds then
             local data = {}
             data.player = player
@@ -614,9 +608,9 @@ function ESP:CreateUI(Tab)
     
     Settings:AddSlider("ESPMaxDistance", {
         Text = "Max Distance",
-        Default = 10000,
+        Default = 1000,
         Min = 100,
-        Max = 50000,
+        Max = 5000,
         Rounding = 0,
         Suffix = "m",
         Callback = function(v) 
@@ -627,9 +621,9 @@ function ESP:CreateUI(Tab)
     
     Visuals:AddSlider("ESPTextSize", {
         Text = "Text Size",
-        Default = 18,
+        Default = 13,
         Min = 10,
-        Max = 30,
+        Max = 20,
         Callback = function(v) self.ESPEnv.Settings.TextSize = v end
     })
 end
