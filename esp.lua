@@ -30,8 +30,19 @@ function ESP:LoadDefaultSettings()
         TextSize = 18,
         TextFont = "SciFi",
         ShowDistance = true,
-        UseTeamColor = true
+        ShowHealth = true,
+        UseTeamColor = true,
+        MaxDistance = 10000,
+        UseMaxDistance = true
     }
+end
+
+function ESP:GetPlayerHealth(player)
+    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        return math.floor(humanoid.Health), math.floor(humanoid.MaxHealth)
+    end
+    return 0, 0
 end
 
 function ESP:UpdateESP()
@@ -46,12 +57,19 @@ function ESP:UpdateESP()
                 local distance = math.floor((localHRP.Position - hrp.Position).magnitude)
                 local shouldShow = true
                 
+                -- Проверка по дистанции
+                if settings.UseMaxDistance and distance > settings.MaxDistance then
+                    shouldShow = false
+                end
+                
+                -- Проверка по команде
                 if settings.TeamCheck and player.Team == self.LocalPlayer.Team then
                     shouldShow = false
                 end
                 
                 if shouldShow then
                     if not player.Character:FindFirstChild("DeepESP_Highlight") then
+                        -- Создаем Highlight
                         local highlight = Instance.new("Highlight")
                         highlight.Name = "DeepESP_Highlight"
                         highlight.Adornee = player.Character
@@ -63,22 +81,38 @@ function ESP:UpdateESP()
                         highlight.Enabled = settings.Enabled
                         highlight.Parent = player.Character
                         
+                        -- Создаем BillboardGui
                         local billboard = Instance.new("BillboardGui")
                         billboard.Name = "DeepESP_Icon"
                         billboard.AlwaysOnTop = true
-                        billboard.Size = UDim2.new(0, 800, 0, 50)
+                        billboard.Size = UDim2.new(0, 800, 0, 100) -- Увеличиваем размер для двух строк
+                        billboard.StudsOffset = Vector3.new(0, 3, 0) -- Поднимаем над головой
                         billboard.Enabled = settings.Enabled
                         billboard.Parent = player.Character
                         
-                        local textLabel = Instance.new("TextLabel")
-                        textLabel.Name = "DeepESP_Text"
-                        textLabel.BackgroundTransparency = 1
-                        textLabel.Size = UDim2.new(0, 800, 0, 50)
-                        textLabel.Font = Enum.Font[settings.TextFont]
-                        textLabel.TextColor3 = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
-                        textLabel.TextSize = settings.TextSize
-                        textLabel.TextWrapped = true
-                        textLabel.Parent = billboard
+                        -- Текстовое поле для имени (сверху)
+                        local nameLabel = Instance.new("TextLabel")
+                        nameLabel.Name = "DeepESP_Name"
+                        nameLabel.BackgroundTransparency = 1
+                        nameLabel.Size = UDim2.new(1, 0, 0.5, 0) -- Занимает верхнюю половину
+                        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+                        nameLabel.Font = Enum.Font[settings.TextFont]
+                        nameLabel.TextColor3 = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
+                        nameLabel.TextSize = settings.TextSize
+                        nameLabel.TextWrapped = true
+                        nameLabel.Parent = billboard
+                        
+                        -- Текстовое поле для информации (снизу)
+                        local infoLabel = Instance.new("TextLabel")
+                        infoLabel.Name = "DeepESP_Info"
+                        infoLabel.BackgroundTransparency = 1
+                        infoLabel.Size = UDim2.new(1, 0, 0.5, 0) -- Занимает нижнюю половину
+                        infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                        infoLabel.Font = Enum.Font[settings.TextFont]
+                        infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200) -- Серый цвет для инфо
+                        infoLabel.TextSize = settings.TextSize - 2
+                        infoLabel.TextWrapped = true
+                        infoLabel.Parent = billboard
                     end
                     
                     local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
@@ -88,29 +122,81 @@ function ESP:UpdateESP()
                         highlight.Enabled = settings.Enabled
                         icon.Enabled = settings.Enabled
                         
+                        -- Обновляем цвета Highlight
                         if settings.UseTeamColor then
                             highlight.FillColor = player.TeamColor.Color
-                            local textLabel = icon:FindFirstChild("DeepESP_Text")
-                            if textLabel then
-                                textLabel.TextColor3 = player.TeamColor.Color
-                            end
+                        else
+                            highlight.FillColor = Color3.fromRGB(255, 255, 255)
                         end
                         
                         highlight.FillTransparency = settings.FillTransparency
                         highlight.OutlineTransparency = settings.OutlineTransparency
                         
-                        local textLabel = icon:FindFirstChild("DeepESP_Text")
-                        if textLabel then
-                            textLabel.TextSize = settings.TextSize
-                            textLabel.Font = Enum.Font[settings.TextFont]
+                        -- Обновляем имя
+                        local nameLabel = icon:FindFirstChild("DeepESP_Name")
+                        if nameLabel then
+                            nameLabel.TextSize = settings.TextSize
+                            nameLabel.Font = Enum.Font[settings.TextFont]
+                            nameLabel.Text = player[settings.PlayerName] or player.Name
                             
-                            local text = player[settings.PlayerName] or player.Name
-                            if settings.ShowDistance then
-                                text = text .. " | Distance: " .. distance
+                            if settings.UseTeamColor then
+                                nameLabel.TextColor3 = player.TeamColor.Color
+                            else
+                                nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
                             end
-                            textLabel.Text = text
+                        end
+                        
+                        -- Обновляем информацию (HP и дистанция)
+                        local infoLabel = icon:FindFirstChild("DeepESP_Info")
+                        if infoLabel then
+                            infoLabel.TextSize = settings.TextSize - 2
+                            infoLabel.Font = Enum.Font[settings.TextFont]
+                            
+                            local infoText = ""
+                            
+                            -- Добавляем HP
+                            if settings.ShowHealth then
+                                local health, maxHealth = self:GetPlayerHealth(player)
+                                local healthColor = Color3.fromRGB(255, 0, 0) -- Красный по умолчанию
+                                
+                                if health > maxHealth * 0.6 then
+                                    healthColor = Color3.fromRGB(0, 255, 0) -- Зеленый если больше 60%
+                                elseif health > maxHealth * 0.3 then
+                                    healthColor = Color3.fromRGB(255, 255, 0) -- Желтый если больше 30%
+                                end
+                                
+                                infoLabel.TextColor3 = healthColor
+                                infoText = infoText .. "❤️ " .. health .. "/" .. maxHealth
+                            end
+                            
+                            -- Добавляем дистанцию
+                            if settings.ShowDistance then
+                                if infoText ~= "" then
+                                    infoText = infoText .. " | "
+                                end
+                                
+                                if distance >= 1000 then
+                                    infoText = infoText .. "📏 " .. string.format("%.1f", distance/1000) .. "km"
+                                else
+                                    infoText = infoText .. "📏 " .. distance .. "m"
+                                end
+                                
+                                -- Если HP не показывается, используем белый цвет для дистанции
+                                if not settings.ShowHealth then
+                                    infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+                                end
+                            end
+                            
+                            infoLabel.Text = infoText
                         end
                     end
+                else
+                    -- Удаляем ESP для игроков за пределами дистанции
+                    local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
+                    local icon = player.Character:FindFirstChild("DeepESP_Icon")
+                    
+                    if highlight then highlight:Destroy() end
+                    if icon then icon:Destroy() end
                 end
             end
         end
@@ -154,6 +240,7 @@ end
 function ESP:CreateUI(Tab)
     local Main = Tab:AddLeftGroupbox("ESP Settings")
     local Visuals = Tab:AddRightGroupbox("ESP Visuals")
+    local Distance = Tab:AddRightGroupbox("Distance Settings")
     
     Main:AddToggle("DeepESPEnabled", {
         Text = "Enabled",
@@ -190,11 +277,40 @@ function ESP:CreateUI(Tab)
         Callback = function(v) self.ESPEnv.Settings.ShowDistance = v end
     })
     
+    Main:AddToggle("ESPShowHealth", {
+        Text = "Show Health",
+        Default = true,
+        Callback = function(v) self.ESPEnv.Settings.ShowHealth = v end
+    })
+    
     Main:AddToggle("ESPUseTeamColor", {
         Text = "Use Team Color",
         Default = true,
         Callback = function(v) 
             self.ESPEnv.Settings.UseTeamColor = v
+            self:RemoveESP()
+        end
+    })
+    
+    -- Настройки дистанции
+    Distance:AddToggle("ESPUseMaxDistance", {
+        Text = "Limit Max Distance",
+        Default = true,
+        Callback = function(v) 
+            self.ESPEnv.Settings.UseMaxDistance = v
+            self:RemoveESP()
+        end
+    })
+    
+    Distance:AddSlider("ESPMaxDistance", {
+        Text = "Max Distance (meters)",
+        Default = 10000,
+        Min = 100,
+        Max = 50000,
+        Rounding = 0,
+        Suffix = "m",
+        Callback = function(v) 
+            self.ESPEnv.Settings.MaxDistance = v
             self:RemoveESP()
         end
     })
