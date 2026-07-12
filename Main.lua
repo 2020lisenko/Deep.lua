@@ -59,6 +59,7 @@ local Window = Library:CreateWindow({
 local Tabs = {
     Combat = Window:AddTab("Combat", "swords"),
     ESP = Window:AddTab("ESP", "eye"),
+    LootESP = Window:AddTab("LootESP", "box"), -- Новая вкладка
     Visuals = Window:AddTab("Visuals", "palette"),
     Player = Window:AddTab("Player", "user"),
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
@@ -101,6 +102,7 @@ print("Loading modules...")
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Combat)
 local HitboxModule = ModuleLoader:LoadModule("hitbox", Tabs.Combat)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
+local LootESPModule = ModuleLoader:LoadModule("lootesp", Tabs.LootESP) -- Новый модуль
 local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
 local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
 print("All modules loaded!")
@@ -175,6 +177,7 @@ MenuGroup:AddButton("Unload", function()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
+    getgenv().DeepLootESP = nil
     getgenv().DeepVisuals = nil
     getgenv().DeepPlayer = nil
     Library:Unload()
@@ -193,6 +196,7 @@ Library:OnUnload(function()
     ModuleLoader:CleanupAll()
     getgenv().Deep = nil
     getgenv().DeepESP = nil
+    getgenv().DeepLootESP = nil
     getgenv().DeepVisuals = nil
     getgenv().DeepPlayer = nil
 end)
