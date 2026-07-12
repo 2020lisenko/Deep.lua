@@ -159,9 +159,6 @@ function Player:StartFly()
     
     self.flySpeed = self.flySpeed or 50
     
-    local UserInputService = game:GetService("UserInputService")
-    local RunService = game:GetService("RunService")
-    
     local conn
     conn = RunService.RenderStepped:Connect(function()
         if not char or not char.Parent then
@@ -190,14 +187,25 @@ function Player:StartFly()
         bg.CFrame = cam.CFrame
         
         local flySpeed = self.flySpeed or 50
-        
-        local moveDir = currentHum.MoveDirection
         local moveVel = Vector3.zero
         
-        if moveDir.Magnitude > 0 then
-            moveVel = (cam.CFrame.LookVector * -moveDir.Z + cam.CFrame.RightVector * moveDir.X) * flySpeed
+        -- Движение вперед/назад (W/S)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveVel = moveVel + cam.CFrame.LookVector * flySpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveVel = moveVel - cam.CFrame.LookVector * flySpeed
         end
         
+        -- Движение влево/вправо (A/D)
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveVel = moveVel + cam.CFrame.RightVector * flySpeed
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveVel = moveVel - cam.CFrame.RightVector * flySpeed
+        end
+        
+        -- Вертикальное движение (Space/LeftControl)
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             moveVel = moveVel + Vector3.new(0, flySpeed, 0)
         end
