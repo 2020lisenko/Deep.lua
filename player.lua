@@ -48,10 +48,24 @@ function Player:Initialize(Tab)
     -- Character features
     local Character = Tab:AddLeftGroupbox("Character")
     
-    -- Fly toggle
-    Character:AddToggle("Fly", {
+    -- Fly toggle с биндом
+    local FlyToggle = Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
+        Callback = function(v)
+            if v then
+                self:StartFly()
+            else
+                self:StopFly()
+            end
+        end
+    })
+    
+    FlyToggle:AddKeyPicker("FlyKeybind", {
+        Text = "Fly Keybind",
+        Default = "F",
+        Mode = "Toggle",
+        SyncToggleState = true,
         Callback = function(v)
             if v then
                 self:StartFly()
@@ -73,10 +87,25 @@ function Player:Initialize(Tab)
         end
     })
     
-    -- Noclip toggle
-    Character:AddToggle("Noclip", {
+    -- Noclip toggle с биндом
+    local NoclipToggle = Character:AddToggle("Noclip", {
         Text = "Noclip",
         Default = false,
+        Callback = function(v)
+            self.noclipEnabled = v
+            if v then
+                self:StartNoclip()
+            else
+                self:StopNoclip()
+            end
+        end
+    })
+    
+    NoclipToggle:AddKeyPicker("NoclipKeybind", {
+        Text = "Noclip Keybind",
+        Default = "G",
+        Mode = "Toggle",
+        SyncToggleState = true,
         Callback = function(v)
             self.noclipEnabled = v
             if v then
@@ -118,17 +147,17 @@ function Player:StartFly()
     
     local bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = Vector3.zero -- Начальная скорость
+    bv.Velocity = Vector3.zero
     bv.Parent = root
     
     local bg = Instance.new("BodyGyro")
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.D = 500
-    bg.P = 3000 -- Добавляем P для более стабильного вращения
-    bg.CFrame = workspace.CurrentCamera.CFrame -- Начальная ориентация
+    bg.P = 3000
+    bg.CFrame = workspace.CurrentCamera.CFrame
     bg.Parent = root
     
-    self.flySpeed = self.flySpeed or 50 -- Инициализируем скорость, если её нет
+    self.flySpeed = self.flySpeed or 50
     
     local UserInputService = game:GetService("UserInputService")
     local RunService = game:GetService("RunService")
@@ -147,7 +176,6 @@ function Player:StartFly()
             return
         end
         
-        -- Проверяем, существуют ли ещё BodyVelocity и BodyGyro
         if not bv or not bv.Parent or not bg or not bg.Parent then
             self:StopFly()
             return
@@ -163,16 +191,13 @@ function Player:StartFly()
         
         local flySpeed = self.flySpeed or 50
         
-        -- Используем MoveDirection вместо MoveVector (правильное свойство)
         local moveDir = currentHum.MoveDirection
         local moveVel = Vector3.zero
         
         if moveDir.Magnitude > 0 then
-            -- Движение по направлению камеры с учётом ввода
             moveVel = (cam.CFrame.LookVector * -moveDir.Z + cam.CFrame.RightVector * moveDir.X) * flySpeed
         end
         
-        -- Вертикальное движение
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             moveVel = moveVel + Vector3.new(0, flySpeed, 0)
         end
@@ -203,7 +228,6 @@ function Player:StopFly()
         
         local root = char:FindFirstChild("HumanoidRootPart")
         if root then
-            -- Удаляем все BodyVelocity и BodyGyro
             for _, obj in pairs(root:GetChildren()) do
                 if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
                     obj:Destroy()
@@ -214,6 +238,7 @@ function Player:StopFly()
     
     print("Fly disabled")
 end
+
 function Player:StartNoclip()
     local conn
     conn = RunService.Stepped:Connect(function()
