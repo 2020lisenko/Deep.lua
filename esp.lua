@@ -81,46 +81,53 @@ function ESP:UpdateESP()
                         highlight.Enabled = settings.Enabled
                         highlight.Parent = player.Character
                         
-                        -- Создаем BillboardGui
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Name = "DeepESP_Icon"
-                        billboard.AlwaysOnTop = true
-                        billboard.Size = UDim2.new(0, 800, 0, 100) -- Увеличиваем размер для двух строк
-                        billboard.StudsOffset = Vector3.new(0, 3, 0) -- Поднимаем над головой
-                        billboard.Enabled = settings.Enabled
-                        billboard.Parent = player.Character
+                        -- Создаем BillboardGui для имени (над головой)
+                        local nameBillboard = Instance.new("BillboardGui")
+                        nameBillboard.Name = "DeepESP_NameBoard"
+                        nameBillboard.AlwaysOnTop = true
+                        nameBillboard.Size = UDim2.new(0, 800, 0, 50)
+                        nameBillboard.StudsOffset = Vector3.new(0, 3, 0) -- Над головой
+                        nameBillboard.Enabled = settings.Enabled
+                        nameBillboard.Parent = player.Character
                         
-                        -- Текстовое поле для имени (сверху)
                         local nameLabel = Instance.new("TextLabel")
                         nameLabel.Name = "DeepESP_Name"
                         nameLabel.BackgroundTransparency = 1
-                        nameLabel.Size = UDim2.new(1, 0, 0.5, 0) -- Занимает верхнюю половину
-                        nameLabel.Position = UDim2.new(0, 0, 0, 0)
+                        nameLabel.Size = UDim2.new(1, 0, 1, 0)
                         nameLabel.Font = Enum.Font[settings.TextFont]
                         nameLabel.TextColor3 = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
                         nameLabel.TextSize = settings.TextSize
                         nameLabel.TextWrapped = true
-                        nameLabel.Parent = billboard
+                        nameLabel.Parent = nameBillboard
                         
-                        -- Текстовое поле для информации (снизу)
+                        -- Создаем BillboardGui для информации (ниже имени)
+                        local infoBillboard = Instance.new("BillboardGui")
+                        infoBillboard.Name = "DeepESP_InfoBoard"
+                        infoBillboard.AlwaysOnTop = true
+                        infoBillboard.Size = UDim2.new(0, 800, 0, 50)
+                        infoBillboard.StudsOffset = Vector3.new(0, 2.2, 0) -- Ниже имени
+                        infoBillboard.Enabled = settings.Enabled
+                        infoBillboard.Parent = player.Character
+                        
                         local infoLabel = Instance.new("TextLabel")
                         infoLabel.Name = "DeepESP_Info"
                         infoLabel.BackgroundTransparency = 1
-                        infoLabel.Size = UDim2.new(1, 0, 0.5, 0) -- Занимает нижнюю половину
-                        infoLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                        infoLabel.Size = UDim2.new(1, 0, 1, 0)
                         infoLabel.Font = Enum.Font[settings.TextFont]
-                        infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200) -- Серый цвет для инфо
+                        infoLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
                         infoLabel.TextSize = settings.TextSize - 2
                         infoLabel.TextWrapped = true
-                        infoLabel.Parent = billboard
+                        infoLabel.Parent = infoBillboard
                     end
                     
                     local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-                    local icon = player.Character:FindFirstChild("DeepESP_Icon")
+                    local nameBoard = player.Character:FindFirstChild("DeepESP_NameBoard")
+                    local infoBoard = player.Character:FindFirstChild("DeepESP_InfoBoard")
                     
-                    if highlight and icon then
+                    if highlight and nameBoard and infoBoard then
                         highlight.Enabled = settings.Enabled
-                        icon.Enabled = settings.Enabled
+                        nameBoard.Enabled = settings.Enabled
+                        infoBoard.Enabled = settings.Enabled
                         
                         -- Обновляем цвета Highlight
                         if settings.UseTeamColor then
@@ -133,7 +140,7 @@ function ESP:UpdateESP()
                         highlight.OutlineTransparency = settings.OutlineTransparency
                         
                         -- Обновляем имя
-                        local nameLabel = icon:FindFirstChild("DeepESP_Name")
+                        local nameLabel = nameBoard:FindFirstChild("DeepESP_Name")
                         if nameLabel then
                             nameLabel.TextSize = settings.TextSize
                             nameLabel.Font = Enum.Font[settings.TextFont]
@@ -147,7 +154,7 @@ function ESP:UpdateESP()
                         end
                         
                         -- Обновляем информацию (HP и дистанция)
-                        local infoLabel = icon:FindFirstChild("DeepESP_Info")
+                        local infoLabel = infoBoard:FindFirstChild("DeepESP_Info")
                         if infoLabel then
                             infoLabel.TextSize = settings.TextSize - 2
                             infoLabel.Font = Enum.Font[settings.TextFont]
@@ -166,7 +173,7 @@ function ESP:UpdateESP()
                                 end
                                 
                                 infoLabel.TextColor3 = healthColor
-                                infoText = infoText .. "❤️ " .. health .. "/" .. maxHealth
+                                infoText = infoText .. "HP " .. health .. "/" .. maxHealth
                             end
                             
                             -- Добавляем дистанцию
@@ -176,9 +183,9 @@ function ESP:UpdateESP()
                                 end
                                 
                                 if distance >= 1000 then
-                                    infoText = infoText .. "📏 " .. string.format("%.1f", distance/1000) .. "km"
+                                    infoText = infoText .. string.format("%.1f", distance/1000) .. "km"
                                 else
-                                    infoText = infoText .. "📏 " .. distance .. "m"
+                                    infoText = infoText .. distance .. "m"
                                 end
                                 
                                 -- Если HP не показывается, используем белый цвет для дистанции
@@ -193,10 +200,12 @@ function ESP:UpdateESP()
                 else
                     -- Удаляем ESP для игроков за пределами дистанции
                     local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-                    local icon = player.Character:FindFirstChild("DeepESP_Icon")
+                    local nameBoard = player.Character:FindFirstChild("DeepESP_NameBoard")
+                    local infoBoard = player.Character:FindFirstChild("DeepESP_InfoBoard")
                     
                     if highlight then highlight:Destroy() end
-                    if icon then icon:Destroy() end
+                    if nameBoard then nameBoard:Destroy() end
+                    if infoBoard then infoBoard:Destroy() end
                 end
             end
         end
@@ -207,10 +216,12 @@ function ESP:RemoveESP()
     for _, player in ipairs(self.Players:GetPlayers()) do
         if player.Character then
             local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-            local icon = player.Character:FindFirstChild("DeepESP_Icon")
+            local nameBoard = player.Character:FindFirstChild("DeepESP_NameBoard")
+            local infoBoard = player.Character:FindFirstChild("DeepESP_InfoBoard")
             
             if highlight then highlight:Destroy() end
-            if icon then icon:Destroy() end
+            if nameBoard then nameBoard:Destroy() end
+            if infoBoard then infoBoard:Destroy() end
         end
     end
 end
