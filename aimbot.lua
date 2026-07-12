@@ -312,7 +312,7 @@ function Aimbot:CreateUI(Tab)
     })
     
     Right:AddToggle("FOVEnabled", {
-        Text = "Show FOV Circle",
+        Text = "Show FOV",
         Default = false,
         Callback = function(v) self.Env.FOVSettings.Enabled = v end
     })
