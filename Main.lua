@@ -56,7 +56,6 @@ local Window = Library:CreateWindow({
     ShowCustomCursor = true,
 })
 
--- ВОТ ЭТО ВАЖНО - 5 вкладок!
 local Tabs = {
     Aimbot = Window:AddTab("Aimbot", "crosshair"),
     ESP = Window:AddTab("ESP", "eye"),
@@ -75,7 +74,7 @@ SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
--- Загружаем ВСЕ модули
+-- Загружаем модули
 print("Loading modules...")
 local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
 local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
@@ -124,7 +123,7 @@ MenuGroup:AddDropdown("DPIDropdown", {
 
 MenuGroup:AddSlider("UICornerSlider", {
     Text = "Corner Radius",
-    Default = Library.CornerRadius,
+    Default = 16,
     Min = 0,
     Max = 20,
     Rounding = 0,
@@ -151,31 +150,8 @@ end)
 
 Library.ToggleKeybind = Options.MenuKeybind
 
-local CustomTheme = {
-    Accent = Color3.fromRGB(100, 160, 220),           -- Приглушённый синий
-    AccentColor2 = Color3.fromRGB(220, 225, 235),     -- Светло-серый с синевой
-    Background = Color3.fromRGB(18, 20, 26),          -- Тёмный серо-синий фон
-    BackgroundColor2 = Color3.fromRGB(28, 30, 38),    -- Чуть светлее фона
-    CustomFont = "Gotham",
-    ElementBorder = Color3.fromRGB(70, 80, 100),      -- Серо-стальная рамка
-    FontColor = Color3.fromRGB(210, 215, 225),        -- Светлый дымчатый текст
-    FontColorSecondary = Color3.fromRGB(130, 140, 160), -- Приглушённый серо-синий
-    NavBarColor = Color3.fromRGB(12, 14, 18),         -- Почти чёрный с синим отливом
-    NavBarAccentColor = Color3.fromRGB(100, 160, 220), -- Акцент как основной синий
-    Red = Color3.fromRGB(220, 70, 80),                -- Приглушённый красный
-    RiskyColor = Color3.fromRGB(220, 70, 80),         -- Совпадает с Red
-    TabColor = Color3.fromRGB(22, 24, 30),            -- Цвет вкладок
-    TabTextColor = Color3.fromRGB(150, 158, 175),     -- Серо-синий текст вкладок
-    TabTextColorSelected = Color3.fromRGB(100, 160, 220), -- Синий активный текст
-}
-
-for k, v in next, CustomTheme do
-    Library.Scheme[k] = v
-end
-
-pcall(function()
-    Library:UpdateColorsUsingScheme()
-end)
+-- Принудительно применяем тему Material
+ThemeManager:ApplyTheme("Material")
 
 SaveManager:LoadAutoloadConfig()
 
