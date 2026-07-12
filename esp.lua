@@ -16,7 +16,6 @@ function ESP:Initialize(Tab)
     self.ESP_DB = false
     self.Active = false
     
-    -- Для Drawing ESP
     self.playerESP = {}
     self.globalTime = 0
     
@@ -31,18 +30,13 @@ function ESP:LoadDefaultSettings()
         Enabled = false,
         TeamCheck = false,
         PlayerName = "Name",
-        FillTransparency = 0.5,
-        OutlineTransparency = 0,
         TextSize = 18,
-        TextFont = "SciFi",
         ShowDistance = true,
         ShowHealth = true,
         ShowName = true,
         UseTeamColor = true,
         MaxDistance = 10000,
         UseMaxDistance = true,
-        DisplayMode = "All",
-        ESPMode = "Highlight", -- "Highlight" или "Drawing"
         BOX_WIDTH = 55,
         MIN_BOX_HEIGHT = 25,
         MIN_BOX_WIDTH = 30,
@@ -61,9 +55,6 @@ function ESP:GetPlayerHealth(player)
     return 0, 0
 end
 
--- ============================================
--- DRAWING ESP ФУНКЦИИ
--- ============================================
 function ESP:lerp(current, target, factor)
     if current == nil then return target end
     return current + (target - current) * factor
@@ -281,7 +272,7 @@ function ESP:calculateDynamicWidth(height, distance)
     return baseWidth * distanceScale
 end
 
-function ESP:updateDrawingESP()
+function ESP:UpdateESP()
     local settings = self.ESPEnv.Settings
     self.globalTime = self.globalTime + 0.016
     local smoothFactor = math.min(settings.SMOOTH_FACTOR * 0.016 * 60, 1.0)
@@ -517,76 +508,7 @@ function ESP:updateDrawingESP()
     end
 end
 
--- ============================================
--- HIGHLIGHT ESP (ТОЛЬКО ПОДСВЕТКА)
--- ============================================
-function ESP:UpdateESP()
-    local settings = self.ESPEnv.Settings
-    
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player ~= self.LocalPlayer and player.Character then
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-            local localHRP = self.LocalPlayer.Character and self.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            
-            if hrp and localHRP then
-                local distance = math.floor((localHRP.Position - hrp.Position).magnitude)
-                local shouldShow = true
-                
-                if settings.UseMaxDistance and distance > settings.MaxDistance then
-                    shouldShow = false
-                end
-                
-                if settings.TeamCheck and player.Team == self.LocalPlayer.Team then
-                    shouldShow = false
-                end
-                
-                if shouldShow then
-                    if not player.Character:FindFirstChild("DeepESP_Highlight") then
-                        local highlight = Instance.new("Highlight")
-                        highlight.Name = "DeepESP_Highlight"
-                        highlight.Adornee = player.Character
-                        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                        highlight.FillColor = settings.UseTeamColor and player.TeamColor.Color or Color3.fromRGB(255, 255, 255)
-                        highlight.FillTransparency = settings.FillTransparency
-                        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                        highlight.OutlineTransparency = settings.OutlineTransparency
-                        highlight.Enabled = settings.Enabled
-                        highlight.Parent = player.Character
-                    end
-                    
-                    local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-                    
-                    if highlight then
-                        highlight.Enabled = settings.Enabled
-                        
-                        if settings.UseTeamColor then
-                            highlight.FillColor = player.TeamColor.Color
-                        else
-                            highlight.FillColor = Color3.fromRGB(255, 255, 255)
-                        end
-                        
-                        highlight.FillTransparency = settings.FillTransparency
-                        highlight.OutlineTransparency = settings.OutlineTransparency
-                    end
-                else
-                    local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-                    if highlight then highlight:Destroy() end
-                end
-            end
-        end
-    end
-end
-
 function ESP:RemoveESP()
-    -- Удаление Highlight ESP
-    for _, player in ipairs(self.Players:GetPlayers()) do
-        if player.Character then
-            local highlight = player.Character:FindFirstChild("DeepESP_Highlight")
-            if highlight then highlight:Destroy() end
-        end
-    end
-    
-    -- Удаление Drawing ESP
     for _, esp in pairs(self.playerESP) do
         self:removeDrawingESP(esp)
     end
@@ -600,11 +522,7 @@ function ESP:StartESP()
             if not self.ESP_DB then
                 self.ESP_DB = true
                 pcall(function()
-                    if self.ESPEnv.Settings.ESPMode == "Highlight" then
-                        self:UpdateESP()
-                    else
-                        self:updateDrawingESP()
-                    end
+                    self:UpdateESP()
                 end)
                 self.ESP_DB = false
             end
@@ -622,17 +540,6 @@ end
 function ESP:CreateUI(Tab)
     local Settings = Tab:AddLeftGroupbox("ESP Settings")
     local Visuals = Tab:AddRightGroupbox("ESP Visuals")
-    
-    -- Режим ESP
-    Settings:AddDropdown("ESPMode", {
-        Values = {"Highlight", "Drawing"},
-        Default = "Highlight",
-        Text = "ESP Mode",
-        Callback = function(v)
-            self.ESPEnv.Settings.ESPMode = v
-            self:RemoveESP()
-        end
-    })
     
     Settings:AddToggle("DeepESPEnabled", {
         Text = "Enabled",
@@ -718,37 +625,12 @@ function ESP:CreateUI(Tab)
         end
     })
     
-    Visuals:AddSlider("ESPFillTransparency", {
-        Text = "Fill Transparency",
-        Default = 0.5,
-        Min = 0,
-        Max = 1,
-        Rounding = 2,
-        Callback = function(v) self.ESPEnv.Settings.FillTransparency = v end
-    })
-    
-    Visuals:AddSlider("ESPOutlineTransparency", {
-        Text = "Outline Transparency",
-        Default = 0,
-        Min = 0,
-        Max = 1,
-        Rounding = 2,
-        Callback = function(v) self.ESPEnv.Settings.OutlineTransparency = v end
-    })
-    
     Visuals:AddSlider("ESPTextSize", {
         Text = "Text Size",
         Default = 18,
         Min = 10,
         Max = 30,
         Callback = function(v) self.ESPEnv.Settings.TextSize = v end
-    })
-    
-    Visuals:AddDropdown("ESPTextFont", {
-        Values = {"SciFi", "Arial", "Fantasy", "Gotham", "Legacy", "SourceSans"},
-        Default = "SciFi",
-        Text = "Text Font",
-        Callback = function(v) self.ESPEnv.Settings.TextFont = v end
     })
 end
 
