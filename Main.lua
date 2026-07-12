@@ -50,8 +50,8 @@ end
 
 local Window = Library:CreateWindow({
     Title = "Deep.lua",
-    Footer = "version: 1.0 | by deivid",
-    Icon = 95816097006870,
+    Footer = "version: 1.67 | by Zeptome",
+    Icon = 11717093063,
     NotifySide = "Right",
     ShowCustomCursor = true,
 })
@@ -152,21 +152,21 @@ end)
 Library.ToggleKeybind = Options.MenuKeybind
 
 local CustomTheme = {
-    Accent = Color3.fromRGB(0, 150, 255),
-    AccentColor2 = Color3.fromRGB(255, 255, 255),
-    Background = Color3.fromRGB(10, 10, 20),
-    BackgroundColor2 = Color3.fromRGB(20, 20, 35),
+    Accent = Color3.fromRGB(100, 160, 220),           -- Приглушённый синий
+    AccentColor2 = Color3.fromRGB(220, 225, 235),     -- Светло-серый с синевой
+    Background = Color3.fromRGB(18, 20, 26),          -- Тёмный серо-синий фон
+    BackgroundColor2 = Color3.fromRGB(28, 30, 38),    -- Чуть светлее фона
     CustomFont = "Gotham",
-    ElementBorder = Color3.fromRGB(0, 150, 255),
-    FontColor = Color3.fromRGB(255, 255, 255),
-    FontColorSecondary = Color3.fromRGB(150, 150, 200),
-    NavBarColor = Color3.fromRGB(5, 5, 15),
-    NavBarAccentColor = Color3.fromRGB(0, 150, 255),
-    Red = Color3.fromRGB(255, 50, 50),
-    RiskyColor = Color3.fromRGB(255, 50, 50),
-    TabColor = Color3.fromRGB(15, 15, 25),
-    TabTextColor = Color3.fromRGB(200, 200, 255),
-    TabTextColorSelected = Color3.fromRGB(0, 150, 255),
+    ElementBorder = Color3.fromRGB(70, 80, 100),      -- Серо-стальная рамка
+    FontColor = Color3.fromRGB(210, 215, 225),        -- Светлый дымчатый текст
+    FontColorSecondary = Color3.fromRGB(130, 140, 160), -- Приглушённый серо-синий
+    NavBarColor = Color3.fromRGB(12, 14, 18),         -- Почти чёрный с синим отливом
+    NavBarAccentColor = Color3.fromRGB(100, 160, 220), -- Акцент как основной синий
+    Red = Color3.fromRGB(220, 70, 80),                -- Приглушённый красный
+    RiskyColor = Color3.fromRGB(220, 70, 80),         -- Совпадает с Red
+    TabColor = Color3.fromRGB(22, 24, 30),            -- Цвет вкладок
+    TabTextColor = Color3.fromRGB(150, 158, 175),     -- Серо-синий текст вкладок
+    TabTextColorSelected = Color3.fromRGB(100, 160, 220), -- Синий активный текст
 }
 
 for k, v in next, CustomTheme do
