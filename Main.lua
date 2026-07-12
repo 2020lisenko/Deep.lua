@@ -48,6 +48,76 @@ function ModuleLoader:CleanupAll()
     self.LoadedModules = {}
 end
 
+-- Создаем красивое окно загрузки
+local Loading = Library:CreateLoading({
+    Title = "Deep.lua",
+    Icon = 11717093063,
+    TotalSteps = 5,
+    ShowSidebar = true,
+})
+
+-- Шаг 1: Инициализация
+Loading:SetMessage("Initializing Deep.lua")
+Loading:SetDescription("Preparing environment...")
+Loading:SetCurrentStep(1)
+Loading.Sidebar:AddLabel("🔧 Version: 1.67")
+Loading.Sidebar:AddLabel("👤 User: " .. game.Players.LocalPlayer.Name)
+Loading.Sidebar:AddLabel("🎮 Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name)
+task.wait(0.8)
+
+-- Шаг 2: Загрузка Aimbot
+Loading:SetMessage("Loading Aimbot Module")
+Loading:SetDescription("Fetching aimbot.lua...")
+Loading:SetCurrentStep(2)
+Loading.Sidebar:AddLabel("🎯 Aimbot: Loading...")
+local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
+if AimbotModule then
+    Loading.Sidebar:AddLabel("✅ Aimbot: Loaded!")
+else
+    Loading.Sidebar:AddLabel("❌ Aimbot: Failed!")
+end
+task.wait(0.5)
+
+-- Шаг 3: Загрузка ESP
+Loading:SetMessage("Loading ESP Module")
+Loading:SetDescription("Fetching esp.lua...")
+Loading:SetCurrentStep(3)
+Loading.Sidebar:AddLabel("👁️ ESP: Loading...")
+local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
+if ESPModule then
+    Loading.Sidebar:AddLabel("✅ ESP: Loaded!")
+else
+    Loading.Sidebar:AddLabel("❌ ESP: Failed!")
+end
+task.wait(0.5)
+
+-- Шаг 4: Загрузка Visuals
+Loading:SetMessage("Loading Visuals Module")
+Loading:SetDescription("Fetching visuals.lua...")
+Loading:SetCurrentStep(4)
+Loading.Sidebar:AddLabel("🎨 Visuals: Loading...")
+local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
+if VisualsModule then
+    Loading.Sidebar:AddLabel("✅ Visuals: Loaded!")
+else
+    Loading.Sidebar:AddLabel("❌ Visuals: Failed!")
+end
+task.wait(0.5)
+
+-- Шаг 5: Загрузка Player
+Loading:SetMessage("Loading Player Module")
+Loading:SetDescription("Fetching player.lua...")
+Loading:SetCurrentStep(5)
+Loading.Sidebar:AddLabel("🏃 Player: Loading...")
+local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
+if PlayerModule then
+    Loading.Sidebar:AddLabel("✅ Player: Loaded!")
+else
+    Loading.Sidebar:AddLabel("❌ Player: Failed!")
+end
+task.wait(0.5)
+
+-- Создаем основное окно
 local Window = Library:CreateWindow({
     Title = "Deep.lua",
     Footer = "version: 1.67 | by Zeptome",
@@ -64,6 +134,12 @@ local Tabs = {
     ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
 }
 
+-- Инициализируем модули с табами (если не загрузились ранее)
+if not AimbotModule then AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot) end
+if not ESPModule then ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP) end
+if not VisualsModule then VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals) end
+if not PlayerModule then PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player) end
+
 ThemeManager:SetLibrary(Library)
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
@@ -73,14 +149,6 @@ SaveManager:SetFolder("Deep.lua/specific-game")
 SaveManager:SetSubFolder("specific-place")
 SaveManager:BuildConfigSection(Tabs["UI Settings"])
 ThemeManager:ApplyToTab(Tabs["UI Settings"])
-
--- Загружаем модули
-print("Loading modules...")
-local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Aimbot)
-local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
-local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
-local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
-print("All modules loaded!")
 
 -- UI Settings
 local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
@@ -150,8 +218,14 @@ end)
 
 Library.ToggleKeybind = Options.MenuKeybind
 
--- Принудительно применяем тему Material
+-- Применяем тему Material
 ThemeManager:ApplyTheme("Material")
+
+-- Завершаем загрузку и показываем главное окно
+Loading:SetMessage("Deep.lua Loaded!")
+Loading:SetDescription("Welcome, " .. game.Players.LocalPlayer.Name .. "!")
+task.wait(1)
+Loading:Continue()
 
 SaveManager:LoadAutoloadConfig()
 
