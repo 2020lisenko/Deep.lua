@@ -12,6 +12,7 @@ function Player:Initialize(Tab)
     self.LocalPlayer = Players.LocalPlayer
     self.Connections = {}
     self.noclipEnabled = false
+    self.InfiniteJumpEnabled = false
     
     local Movement = Tab:AddLeftGroupbox("Movement")
     
@@ -121,16 +122,30 @@ function Player:Initialize(Tab)
         Text = "Infinite Jump",
         Default = false,
         Callback = function(v)
-            if v then
-                self:StartInfJump()
-            else
-                self:StopInfJump()
-            end
+            self.InfiniteJumpEnabled = v
         end
     })
     
+    -- Initialize Infinite Jump connection
+    self:SetupInfiniteJump()
+    
     print("Player module loaded!")
     return self
+end
+
+function Player:SetupInfiniteJump()
+    local conn = UserInputService.JumpRequest:Connect(function()
+        if self.InfiniteJumpEnabled then
+            local char = self.LocalPlayer.Character
+            if char then
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end
+    end)
+    table.insert(self.Connections, conn)
 end
 
 function Player:StartFly()
@@ -275,26 +290,10 @@ function Player:StopNoclip()
     print("Noclip disabled")
 end
 
-function Player:StartInfJump()
-    local conn
-    conn = UserInputService.InputBegan:Connect(function(input, gp)
-        if gp or input.KeyCode ~= Enum.KeyCode.Space then return end
-        local char = self.LocalPlayer.Character
-        if char and char:FindFirstChild("Humanoid") then
-            char.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-    table.insert(self.Connections, conn)
-    print("Infinite Jump enabled")
-end
-
-function Player:StopInfJump()
-    print("Infinite Jump disabled")
-end
-
 function Player:Cleanup()
     self:StopFly()
     self.noclipEnabled = false
+    self.InfiniteJumpEnabled = false
     
     for _, conn in pairs(self.Connections) do
         if conn then pcall(function() conn:Disconnect() end) end
