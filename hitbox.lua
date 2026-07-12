@@ -9,21 +9,13 @@ function Hitbox:Initialize(Tab)
     print("Hitbox module loading...")
     
     self.Enabled = false
-    self.Size = 1
-    self.SelectedParts = {
-        Head = true,
-        Torso = true,
-        LeftArm = false,
-        RightArm = false,
-        LeftLeg = false,
-        RightLeg = false
-    }
+    self.Size = 50
+    self.Transparency = 0.7
     self.Connections = {}
-    self.OriginalSizes = {}
     
     local HitboxGroup = Tab:AddRightGroupbox("Hitbox Expander", "box")
     
-    HitboxGroup:AddToggle("HitboxEnabled", {
+    local HitboxToggle = HitboxGroup:AddToggle("HitboxEnabled", {
         Text = "Enable Hitbox Expander",
         Default = false,
         Callback = function(v)
@@ -36,140 +28,106 @@ function Hitbox:Initialize(Tab)
         end
     })
     
+    HitboxToggle:AddKeyPicker("HitboxKeybind", {
+        Text = "Hitbox Keybind",
+        Default = "H",
+        Mode = "Toggle",
+        SyncToggleState = true,
+        Callback = function(v)
+            self.Enabled = v
+            if v then
+                self:Start()
+            else
+                self:Stop()
+            end
+        end
+    })
+    
     HitboxGroup:AddSlider("HitboxSize", {
         Text = "Hitbox Size",
-        Default = 1,
+        Default = 50,
         Min = 1,
-        Max = 10,
-        Rounding = 1,
+        Max = 500,
+        Rounding = 0,
         Callback = function(v)
             self.Size = v
         end
     })
     
-    HitboxGroup:AddDivider()
-    HitboxGroup:AddLabel("Body Parts")
+    HitboxGroup:AddSlider("HitboxTransparency", {
+        Text = "Transparency",
+        Default = 0.7,
+        Min = 0,
+        Max = 1,
+        Rounding = 1,
+        Callback = function(v)
+            self.Transparency = v
+        end
+    })
     
-    HitboxGroup:AddToggle("HeadPart", {
-        Text = "Head",
+    HitboxGroup:AddToggle("HitboxColorEnabled", {
+        Text = "Enable Color",
         Default = true,
         Callback = function(v)
-            self.SelectedParts.Head = v
+            self.ColorEnabled = v
         end
     })
     
-    HitboxGroup:AddToggle("TorsoPart", {
-        Text = "Torso",
+    HitboxGroup:AddLabel("Hitbox Color"):AddColorPicker("HitboxColor", {
+        Default = Color3.fromRGB(0, 105, 255),
+        Callback = function(v)
+            self.Color = v
+        end
+    })
+    
+    HitboxGroup:AddToggle("HitboxMaterialEnabled", {
+        Text = "Enable Neon Material",
         Default = true,
         Callback = function(v)
-            self.SelectedParts.Torso = v
+            self.MaterialEnabled = v
         end
     })
     
-    HitboxGroup:AddToggle("LeftArmPart", {
-        Text = "Left Arm",
+    HitboxGroup:AddToggle("HitboxCanCollide", {
+        Text = "Can Collide",
         Default = false,
         Callback = function(v)
-            self.SelectedParts.LeftArm = v
+            self.CanCollide = v
         end
     })
     
-    HitboxGroup:AddToggle("RightArmPart", {
-        Text = "Right Arm",
-        Default = false,
-        Callback = function(v)
-            self.SelectedParts.RightArm = v
-        end
-    })
-    
-    HitboxGroup:AddToggle("LeftLegPart", {
-        Text = "Left Leg",
-        Default = false,
-        Callback = function(v)
-            self.SelectedParts.LeftLeg = v
-        end
-    })
-    
-    HitboxGroup:AddToggle("RightLegPart", {
-        Text = "Right Leg",
-        Default = false,
-        Callback = function(v)
-            self.SelectedParts.RightLeg = v
-        end
-    })
+    self.ColorEnabled = true
+    self.Color = Color3.fromRGB(0, 105, 255)
+    self.MaterialEnabled = true
+    self.CanCollide = false
     
     print("Hitbox module loaded!")
     return self
 end
 
-function Hitbox:ShouldModifyPart(partName)
-    local name = partName:lower()
-    
-    if name == "head" and self.SelectedParts.Head then
-        return true
-    elseif (name:find("torso") or name:find("upper") or name:find("lower")) and self.SelectedParts.Torso then
-        return true
-    elseif (name:find("left") and name:find("arm")) and self.SelectedParts.LeftArm then
-        return true
-    elseif (name:find("right") and name:find("arm")) and self.SelectedParts.RightArm then
-        return true
-    elseif (name:find("left") and name:find("leg")) and self.SelectedParts.LeftLeg then
-        return true
-    elseif (name:find("right") and name:find("leg")) and self.SelectedParts.RightLeg then
-        return true
-    end
-    
-    return false
-end
-
-function Hitbox:GetNewSize(partName)
-    local name = partName:lower()
-    local size = self.Size
-    
-    if name == "head" then
-        return Vector3.new(size * 2, size * 1.5, size * 1.5)
-    elseif name:find("torso") or name:find("upper") or name:find("lower") then
-        return Vector3.new(size * 2, size * 2, size * 1.5)
-    elseif name:find("arm") then
-        return Vector3.new(size, size * 2, size)
-    elseif name:find("leg") then
-        return Vector3.new(size, size * 2, size)
-    end
-    
-    return nil
-end
-
 function Hitbox:Start()
     local conn
-    conn = RunService.Heartbeat:Connect(function()
+    conn = RunService.RenderStepped:Connect(function()
         if not self.Enabled then return end
         
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= Players.LocalPlayer and player.Character then
-                for _, part in pairs(player.Character:GetChildren()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        if self:ShouldModifyPart(part.Name) then
-                            -- Сохраняем оригинальный размер
-                            if not self.OriginalSizes[part] then
-                                self.OriginalSizes[part] = part.Size
-                            end
-                            
-                            -- Увеличиваем размер
-                            local newSize = self:GetNewSize(part.Name)
-                            if newSize then
-                                part.Size = newSize
-                                part.Transparency = 0.7
-                            end
-                        else
-                            -- Восстанавливаем размер если часть не выбрана
-                            if self.OriginalSizes[part] then
-                                part.Size = self.OriginalSizes[part]
-                                part.Transparency = 0
-                                self.OriginalSizes[part] = nil
-                            end
+                pcall(function()
+                    local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        rootPart.Size = Vector3.new(self.Size, self.Size, self.Size)
+                        rootPart.Transparency = self.Transparency
+                        rootPart.CanCollide = self.CanCollide
+                        
+                        if self.ColorEnabled then
+                            rootPart.BrickColor = BrickColor.new(self.Color)
+                        end
+                        
+                        if self.MaterialEnabled then
+                            rootPart.Material = "Neon"
                         end
                     end
-                end
+                end)
             end
         end
     end)
@@ -179,20 +137,20 @@ function Hitbox:Start()
 end
 
 function Hitbox:Stop()
-    -- Восстанавливаем оригинальные размеры
+    -- Восстанавливаем оригинальные параметры
     for _, player in pairs(Players:GetPlayers()) do
-        if player.Character then
-            for _, part in pairs(player.Character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    if self.OriginalSizes[part] then
-                        part.Size = self.OriginalSizes[part]
-                    end
-                    part.Transparency = 0
+        if player ~= Players.LocalPlayer and player.Character then
+            pcall(function()
+                local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    rootPart.Size = Vector3.new(2, 2, 1) -- Стандартный размер
+                    rootPart.Transparency = 0
+                    rootPart.CanCollide = true
+                    rootPart.Material = "Plastic"
                 end
-            end
+            end)
         end
     end
-    self.OriginalSizes = {}
     print("Hitbox Expander disabled")
 end
 
