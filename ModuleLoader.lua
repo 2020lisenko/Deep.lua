@@ -1,2 +1,0 @@
--- ModuleLoader is integrated into Main.lua
--- This file is kept for reference only
