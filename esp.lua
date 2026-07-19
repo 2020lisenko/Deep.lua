@@ -92,7 +92,7 @@ local Fonts = {
     SourceSansBold = Enum.Font.SourceSansBold,
     Gotham         = Enum.Font.Gotham,
     GothamBold     = Enum.Font.GothamBold,
-    Minecraft      = Enum.Font.Minecraft,
+    Minecraft      = Enum.Font.Arcade, -- Исправлено: Enum.Font.Minecraft не существует в Roblox
     Cartoon        = Enum.Font.Cartoon,
 }
 
