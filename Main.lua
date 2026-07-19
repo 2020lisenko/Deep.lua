@@ -31,16 +31,6 @@ function ModuleLoader:TryLoadString(src, moduleName)
     return result
 end
 
-function ModuleLoader:TryReadLocal(moduleName)
-    local success, data = pcall(function()
-        return readfile(moduleName .. ".lua")
-    end)
-    if success and data then
-        return self:TryLoadString(data, moduleName)
-    end
-    return nil
-end
-
 function ModuleLoader:TryHttpGet(moduleName)
     local url = self.Repo .. moduleName .. ".lua"
     local success, data = pcall(function()
@@ -61,10 +51,7 @@ function ModuleLoader:TryEmbedded(moduleName)
 end
 
 function ModuleLoader:Load(moduleName, ...)
-    local module = self:TryReadLocal(moduleName)
-    if not module then
-        module = self:TryHttpGet(moduleName)
-    end
+    local module = self:TryHttpGet(moduleName)
     if not module then
         module = self:TryEmbedded(moduleName)
     end
@@ -82,7 +69,7 @@ function ModuleLoader:Load(moduleName, ...)
     warn("[Deep.lua] Failed to load " .. moduleName)
     Library:Notify({
         Title       = "Deep.lua — Load Error",
-        Description = moduleName .. " failed to load.\nPut " .. moduleName .. ".lua in your executor workspace.",
+        Description = moduleName .. " failed to load from GitHub.\nCheck your internet connection.",
         Time        = 6,
         Icon        = "triangle-alert",
     })
