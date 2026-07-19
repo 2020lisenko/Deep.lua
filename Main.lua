@@ -247,15 +247,6 @@ MenuGroup:AddButton({
     Tooltip = "Completely removes Deep.lua from the game.",
 })
 
-local PanicButton = Library:AddDraggableButton(
-    "⬛ Panic",
-    "x",
-    "Right",
-    function()
-        Library:Unload()
-    end
-)
-
 Library.ToggleKeybind = Options.MenuKeybind
 
 ThemeManager:ApplyTheme("Material")

@@ -47,9 +47,8 @@ function Visuals:LoadDefaultSettings()
         CustomTime = false,
         CustomTimeValue = 12,
         ThirdPerson = false,
-        ThirdPersonDistance = 10,
         FOV = false,
-        FOVAmount = 1.0
+        FOVAmount = 70
     }
 end
 
@@ -134,7 +133,7 @@ function Visuals:ApplyThirdPerson()
     local s = self.VisualsEnv.Settings
     if s.ThirdPerson then
         self.LocalPlayer.CameraMinZoomDistance = 0.5
-        self.LocalPlayer.CameraMaxZoomDistance = s.ThirdPersonDistance
+        self.LocalPlayer.CameraMaxZoomDistance = 10
     else
         self.LocalPlayer.CameraMinZoomDistance = self.OriginalCameraMinZoom
         self.LocalPlayer.CameraMaxZoomDistance = self.OriginalCameraMaxZoom
@@ -145,8 +144,7 @@ function Visuals:ApplyFOV()
     local cam = workspace.CurrentCamera
     if not cam then return end
     if self.VisualsEnv.Settings.FOV then
-        local fov = math.clamp(70 * self.VisualsEnv.Settings.FOVAmount, 1, 120)
-        cam.FieldOfView = fov
+        cam.FieldOfView = math.clamp(self.VisualsEnv.Settings.FOVAmount, 30, 120)
     else
         cam.FieldOfView = self.OriginalFOV
     end
@@ -228,18 +226,6 @@ function Visuals:CreateUI(Tab)
         end
     })
 
-    Misc:AddSlider("ThirdPersonDistance", {
-        Text = "Distance",
-        Default = 10,
-        Min = 1,
-        Max = 100,
-        Rounding = 1,
-        Callback = function(v)
-            self.VisualsEnv.Settings.ThirdPersonDistance = v
-            self:ApplyThirdPerson()
-        end
-    })
-
     Misc:AddDivider()
 
     Misc:AddToggle("FOV", {
@@ -252,11 +238,11 @@ function Visuals:CreateUI(Tab)
     })
 
     Misc:AddSlider("FOVAmount", {
-        Text = "FOV Scale",
-        Default = 1.0,
-        Min = 0.5,
-        Max = 1.7,
-        Rounding = 2,
+        Text = "FOV",
+        Default = 70,
+        Min = 30,
+        Max = 120,
+        Rounding = 0,
         Callback = function(v)
             self.VisualsEnv.Settings.FOVAmount = v
             self:ApplyFOV()
