@@ -567,17 +567,18 @@ function ESP:TeardownConnections()
 end
 
 function ESP:CreateUI(Tab)
-    local S = self.Config; local Left = Tab:AddLeftGroupbox("Player ESP")
+    local S = self.Config
+    local Left = Tab:AddLeftGroupbox("Player ESP", "eye")
 
     local BoxTog = Left:AddToggle("ESPBox", { Text = "Box", Default = false, Callback = function(v) S.Box.Enabled = v end })
-    BoxTog:AddColorPicker("BoxColor1", { Text = "Color 1", Default = S.Box.Gradient.Color1, Callback = function(v) S.Box.Gradient.Color1 = v end })
-    BoxTog:AddColorPicker("BoxColor2", { Text = "Color 2", Default = S.Box.Gradient.Color2, Callback = function(v) S.Box.Gradient.Color2 = v end })
-    BoxTog:AddColorPicker("BoxColor3", { Text = "Color 3", Default = S.Box.Gradient.Color3, Callback = function(v) S.Box.Gradient.Color3 = v end })
+    BoxTog:AddColorPicker("BoxColor1", { Default = S.Box.Gradient.Color1, Callback = function(v) S.Box.Gradient.Color1 = v end })
+    BoxTog:AddColorPicker("BoxColor2", { Default = S.Box.Gradient.Color2, Callback = function(v) S.Box.Gradient.Color2 = v end })
+    BoxTog:AddColorPicker("BoxColor3", { Default = S.Box.Gradient.Color3, Callback = function(v) S.Box.Gradient.Color3 = v end })
 
     local FillTog = Left:AddToggle("ESPFilled", { Text = "Filled Box", Default = false, Callback = function(v) S.Box.Filled.Enabled = v end })
-    FillTog:AddColorPicker("FillCol1", { Text = "Fill 1", Default = S.Box.Filled.Gradient.Color1, Callback = function(v) S.Box.Filled.Gradient.Color1 = v end })
-    FillTog:AddColorPicker("FillCol2", { Text = "Fill 2", Default = S.Box.Filled.Gradient.Color2, Callback = function(v) S.Box.Filled.Gradient.Color2 = v end })
-    FillTog:AddColorPicker("FillCol3", { Text = "Fill 3", Default = S.Box.Filled.Gradient.Color3, Callback = function(v) S.Box.Filled.Gradient.Color3 = v end })
+    FillTog:AddColorPicker("FillCol1", { Default = S.Box.Filled.Gradient.Color1, Callback = function(v) S.Box.Filled.Gradient.Color1 = v end })
+    FillTog:AddColorPicker("FillCol2", { Default = S.Box.Filled.Gradient.Color2, Callback = function(v) S.Box.Filled.Gradient.Color2 = v end })
+    FillTog:AddColorPicker("FillCol3", { Default = S.Box.Filled.Gradient.Color3, Callback = function(v) S.Box.Filled.Gradient.Color3 = v end })
 
     local HLTog = Left:AddToggle("ESPHighlight", { Text = "Highlight", Default = false, Callback = function(v)
         S.Highlight.Enabled = v; if not v then for p in pairs(self.Cache) do self:RemoveHighlight(p) end end end })
@@ -588,14 +589,14 @@ function ESP:CreateUI(Tab)
     local ChamsTog = Left:AddToggle("ESPChams", { Text = "Chams", Default = false, Callback = function(v)
         S.Chams.Enabled = v; if not v then for p in pairs(self.Cache) do self:RemoveChams(p) end end end })
     ChamsTog:AddColorPicker("ChamsColor", { Default = S.Chams.Color, Callback = function(v) S.Chams.Color = v end })
-    Left:AddToggle("ChamsBehindWalls", { Text = "Chams Behind Walls", Default = false, Callback = function(v) S.Chams.BehindWalls = v end })
+    Left:AddToggle("ChamsBehindWalls", { Text = "Behind Walls", Default = false, Callback = function(v) S.Chams.BehindWalls = v end })
 
     Left:AddDivider()
     local MatTog = Left:AddToggle("ESPMat", { Text = "Material Override", Default = false, Callback = function(v) S.Material.Enabled = v end })
     MatTog:AddColorPicker("MatCol", { Default = S.Material.Color, Callback = function(v) S.Material.Color = v end })
     Left:AddDropdown("MatType", { Values = {"ForceField", "Neon", "Glass", "SmoothPlastic"}, Default = "ForceField", Text = "Material", Callback = function(v) S.Material.Material = Enum.Material[v] end })
 
-    local Right = Tab:AddRightGroupbox("Text & Bars")
+    local Right = Tab:AddRightGroupbox("Text & Bars", "type")
     local NameTog = Right:AddToggle("ESPName", { Text = "Name", Default = false, Callback = function(v) S.Text.Name.Enabled = v end })
     NameTog:AddColorPicker("NameColor", { Default = S.Text.Name.Color, Callback = function(v) S.Text.Name.Color = v end })
     Right:AddDropdown("NameType", { Values = {"DisplayName", "Username"}, Default = "DisplayName", Text = "Type", Callback = function(v) S.Text.Name.Type = v end })
