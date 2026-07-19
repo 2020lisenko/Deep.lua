@@ -269,7 +269,6 @@ end)
 Library:OnUnload(function()
     WatermarkConnection:Disconnect()
     Watermark:Destroy()
-    pcall(function() PanicButton:Destroy() end)
     ModuleLoader:CleanupAll()
     getgenv().Deep        = nil
     getgenv().DeepESP     = nil

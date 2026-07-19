@@ -32,7 +32,7 @@ local function CustomBounds(model)
         Vector3.new(-0.5, -0.5, 0.5), Vector3.new(-0.5, 0.5, 0.5),
         Vector3.new(0.5, -0.5, 0.5), Vector3.new(0.5, 0.5, 0.5),
     }
-    local inc = Vector3.new(2, 2, 2)
+    local inc = Vector3.new(0.4, 0.4, 0.4)
     for _, part in ipairs(model:GetChildren()) do
         if part:IsA("BasePart") then
             local cf, sz = part.CFrame, part.Size
@@ -86,7 +86,12 @@ function ESP:Initialize(tab)
     return self
 end
 
-function ESP:MakeText()
+function ESP:MakeText(plr, name)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "ESP_Text_" .. name .. "_" .. (plr and plr.Name or "x")
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.Parent = CoreGui
+
     local lbl = Instance.new("TextLabel")
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = Color3.new(1, 1, 1)
@@ -97,7 +102,9 @@ function ESP:MakeText()
     lbl.FontFace = Fonts[self.cfg.Font]
     lbl.Text = ""
     lbl.Visible = false
-    return lbl
+    lbl.Parent = gui
+
+    return lbl, gui
 end
 
 function ESP:CreateBoxGui(plr)
@@ -249,9 +256,9 @@ function ESP:SetupPlayer(plr)
     if plr == Players.LocalPlayer then return end
     local c = self.cache[plr] or {}
     c.Box = self:CreateBoxGui(plr)
-    c.NameLbl = self:MakeText()
-    c.DistLbl = self:MakeText()
-    c.WeapLbl = self:MakeText()
+    c.NameLbl, c.NameGui = self:MakeText(plr, "Name")
+    c.DistLbl, c.DistGui = self:MakeText(plr, "Dist")
+    c.WeapLbl, c.WeapGui = self:MakeText(plr, "Weap")
     c.HealthBar = self:CreateBarGui(plr, "Health", self.cfg.HealthBar.Color)
     c.ArmorBar = self:CreateBarGui(plr, "Armor", self.cfg.ArmorBar.Color)
     c.CharAdded = plr.CharacterAdded:Connect(function(nc)
@@ -273,8 +280,8 @@ function ESP:CleanupPlayer(plr)
     local c = self.cache[plr]
     if not c then return end
     if c.Box then c.Box.Gui:Destroy() end
-    for _, k in ipairs({"NameLbl", "DistLbl", "WeapLbl"}) do
-        if c[k] and c[k].Parent then c[k].Parent:Destroy() end
+    for _, k in ipairs({"NameGui", "DistGui", "WeapGui"}) do
+        if c[k] then c[k]:Destroy() end
     end
     for _, k in ipairs({"HealthBar", "ArmorBar"}) do
         if c[k] and c[k].Gui then c[k].Gui:Destroy() end
