@@ -303,17 +303,17 @@ function ESP:UpdatePlayer(plr)
     if not c then return end
     local char = plr.Character
     local cam = workspace.CurrentCamera
-    if not char or not cam then self:CleanupPlayer(plr) return end
+    if not char or not cam then return end
 
     local hum = char:FindFirstChildOfClass("Humanoid")
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp then self:CleanupPlayer(plr) return end
+    if not hum or not hrp then return end
 
     local cf, size3, center = CustomBounds(char)
-    if not cf then self:CleanupPlayer(plr) return end
+    if not cf then return end
 
     local sp, onScr = cam:WorldToViewportPoint(center)
-    if not onScr then self:CleanupPlayer(plr) return end
+    if not onScr then return end
 
     local dist = (cam.CFrame.Position - center).Magnitude
     local h = math.tan(math.rad(cam.FieldOfView / 2)) * 2 * dist
