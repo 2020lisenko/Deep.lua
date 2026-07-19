@@ -3,7 +3,7 @@ Aimbot.__index = Aimbot
 
 function Aimbot:Initialize(Tab)
     local self = setmetatable({}, Aimbot)
-    
+
     if not getgenv().Deep then
         getgenv().Deep = {
             Settings = {},
@@ -11,14 +11,14 @@ function Aimbot:Initialize(Tab)
             Functions = {}
         }
     end
-    
+
     self.Env = getgenv().Deep
     self.Connections = {}
     self.Running = false
     self.Typing = false
     self.Locked = nil
     self.Animation = nil
-    
+
     self.Services = {
         RunService = game:GetService("RunService"),
         UserInputService = game:GetService("UserInputService"),
@@ -27,12 +27,12 @@ function Aimbot:Initialize(Tab)
         Camera = workspace.CurrentCamera,
         LocalPlayer = game:GetService("Players").LocalPlayer
     }
-    
+
     self:LoadDefaultSettings()
     self:CreateUI(Tab)
     self.FOVCircle = Drawing.new("Circle")
     self:SetupConnections()
-    
+
     return self
 end
 
@@ -48,7 +48,7 @@ function Aimbot:LoadDefaultSettings()
         LockPart = "Head",
         MaxDistance = 2000
     }
-    
+
     self.Env.FOVSettings = {
         Enabled = false,
         Visible = true,
@@ -64,8 +64,9 @@ end
 
 function Aimbot:CancelLock()
     self.Locked = nil
-    if self.Animation then 
-        self.Animation:Cancel() 
+    if self.Animation then
+        self.Animation:Cancel()
+        self.Animation = nil
     end
     if self.FOVCircle then
         self.FOVCircle.Color = self.Env.FOVSettings.Color
@@ -74,90 +75,106 @@ end
 
 function Aimbot:GetClosestPlayer()
     local settings = self.Env.Settings
-    local maxDist = settings.MaxDistance
-    
-    -- Determine search radius based on FOV settings
-    if self.Env.FOVSettings.Enabled then
-        maxDist = self.Env.FOVSettings.Amount
-    end
-    
-    if not self.Locked then
-        for _, player in ipairs(self.Services.Players:GetPlayers()) do
-            if player ~= self.Services.LocalPlayer then
-                local character = player.Character
-                if character and character:FindFirstChild(settings.LockPart) and character:FindFirstChildOfClass("Humanoid") then
-                    if settings.TeamCheck and player.Team == self.Services.LocalPlayer.Team then
-                        continue
-                    end
-                    if settings.AliveCheck and character:FindFirstChildOfClass("Humanoid").Health <= 0 then
-                        continue
-                    end
-                    if settings.WallCheck then
-                        local parts = self.Services.Camera:GetPartsObscuringTarget(
-                            {character[settings.LockPart].Position}, 
-                            character:GetDescendants()
-                        )
-                        if #parts > 0 then
-                            continue
-                        end
-                    end
-                    
-                    local vector, onScreen = self.Services.Camera:WorldToViewportPoint(
-                        character[settings.LockPart].Position
-                    )
-                    
-                    if onScreen then
-                        local mousePos = self.Services.UserInputService:GetMouseLocation()
-                        local distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
-                        
-                        if distance < maxDist then
-                            maxDist = distance
-                            self.Locked = player
-                        end
-                    end
+    local fovSettings = self.Env.FOVSettings
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+
+    local searchRadius = fovSettings.Enabled and fovSettings.Amount or settings.MaxDistance
+
+    if self.Locked then
+        local char = self.Locked.Character
+        if char and char:FindFirstChild(settings.LockPart) then
+            if settings.AliveCheck then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if not hum or hum.Health <= 0 then
+                    self:CancelLock()
+                    return
                 end
             end
-        end
-    else
-        if self.Locked.Character and self.Locked.Character:FindFirstChild(settings.LockPart) then
-            local vector = self.Services.Camera:WorldToViewportPoint(
-                self.Locked.Character[settings.LockPart].Position
-            )
+            local vector, onScreen = camera:WorldToViewportPoint(char[settings.LockPart].Position)
+            if not onScreen then
+                self:CancelLock()
+                return
+            end
             local mousePos = self.Services.UserInputService:GetMouseLocation()
             local distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
-            
-            if distance > maxDist then
+            if distance > searchRadius then
                 self:CancelLock()
+                return
             end
         else
             self:CancelLock()
         end
+        return
     end
+
+    local closestDist = searchRadius
+    local closestPlayer = nil
+
+    for _, player in ipairs(self.Services.Players:GetPlayers()) do
+        if player == self.Services.LocalPlayer then continue end
+
+        local character = player.Character
+        if not character then continue end
+        if not character:FindFirstChild(settings.LockPart) then continue end
+
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then continue end
+        if settings.AliveCheck and humanoid.Health <= 0 then continue end
+        if settings.TeamCheck and player.Team == self.Services.LocalPlayer.Team then continue end
+
+        if settings.WallCheck then
+            local parts = camera:GetPartsObscuringTarget(
+                {character[settings.LockPart].Position},
+                character:GetDescendants()
+            )
+            if #parts > 0 then continue end
+        end
+
+        local vector, onScreen = camera:WorldToViewportPoint(character[settings.LockPart].Position)
+        if not onScreen then continue end
+
+        local mousePos = self.Services.UserInputService:GetMouseLocation()
+        local dist = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(vector.X, vector.Y)).Magnitude
+
+        if dist < closestDist then
+            closestDist = dist
+            closestPlayer = player
+        end
+    end
+
+    self.Locked = closestPlayer
 end
 
 function Aimbot:UpdateAimbot()
     if not self.Running or not self.Env.Settings.Enabled then return end
-    
+
     self:GetClosestPlayer()
-    
+
     if self.Locked and self.Locked.Character then
         local targetPart = self.Locked.Character:FindFirstChild(self.Env.Settings.LockPart)
         if not targetPart then return end
-        
+
+        local camera = workspace.CurrentCamera
+        if not camera then return end
+
         if self.Env.Settings.Sensitivity > 0 then
+            if self.Animation then
+                self.Animation:Cancel()
+            end
             self.Animation = self.Services.TweenService:Create(
-                self.Services.Camera,
+                camera,
                 TweenInfo.new(self.Env.Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
-                {CFrame = CFrame.new(self.Services.Camera.CFrame.Position, targetPart.Position)}
+                {CFrame = CFrame.new(camera.CFrame.Position, targetPart.Position)}
             )
             self.Animation:Play()
         else
-            self.Services.Camera.CFrame = CFrame.new(
-                self.Services.Camera.CFrame.Position, 
+            camera.CFrame = CFrame.new(
+                camera.CFrame.Position,
                 targetPart.Position
             )
         end
-        
+
         if self.FOVCircle then
             self.FOVCircle.Color = self.Env.FOVSettings.LockedColor
         end
@@ -166,16 +183,19 @@ end
 
 function Aimbot:UpdateFOV()
     if not self.FOVCircle then return end
-    
+
     if self.Env.FOVSettings.Enabled and self.Env.Settings.Enabled then
         self.FOVCircle.Radius = self.Env.FOVSettings.Amount
         self.FOVCircle.Thickness = self.Env.FOVSettings.Thickness
         self.FOVCircle.Filled = self.Env.FOVSettings.Filled
         self.FOVCircle.NumSides = self.Env.FOVSettings.Sides
-        self.FOVCircle.Color = self.Env.FOVSettings.Color
+
+        if not self.Locked then
+            self.FOVCircle.Color = self.Env.FOVSettings.Color
+        end
         self.FOVCircle.Transparency = self.Env.FOVSettings.Transparency
         self.FOVCircle.Visible = self.Env.FOVSettings.Visible
-        
+
         local mousePos = self.Services.UserInputService:GetMouseLocation()
         self.FOVCircle.Position = Vector2.new(mousePos.X, mousePos.Y)
     else
@@ -185,23 +205,23 @@ end
 
 function Aimbot:SetupConnections()
     self:DisconnectAll()
-    
+
     self.Connections.TypingStarted = self.Services.UserInputService.TextBoxFocused:Connect(function()
         self.Typing = true
     end)
-    
+
     self.Connections.TypingEnded = self.Services.UserInputService.TextBoxFocusReleased:Connect(function()
         self.Typing = false
     end)
-    
+
     self.Connections.RenderStepped = self.Services.RunService.RenderStepped:Connect(function()
         self:UpdateFOV()
         self:UpdateAimbot()
     end)
-    
+
     self.Connections.InputBegan = self.Services.UserInputService.InputBegan:Connect(function(input)
         if self.Typing then return end
-        
+
         local triggered = false
         pcall(function()
             triggered = input.KeyCode == Enum.KeyCode[self.Env.Settings.TriggerKey]
@@ -211,7 +231,7 @@ function Aimbot:SetupConnections()
                 triggered = input.UserInputType == Enum.UserInputType[self.Env.Settings.TriggerKey]
             end)
         end
-        
+
         if triggered then
             if self.Env.Settings.Toggle then
                 self.Running = not self.Running
@@ -221,10 +241,10 @@ function Aimbot:SetupConnections()
             end
         end
     end)
-    
+
     self.Connections.InputEnded = self.Services.UserInputService.InputEnded:Connect(function(input)
         if self.Typing or self.Env.Settings.Toggle then return end
-        
+
         local triggered = false
         pcall(function()
             triggered = input.KeyCode == Enum.KeyCode[self.Env.Settings.TriggerKey]
@@ -234,7 +254,7 @@ function Aimbot:SetupConnections()
                 triggered = input.UserInputType == Enum.UserInputType[self.Env.Settings.TriggerKey]
             end)
         end
-        
+
         if triggered then
             self.Running = false
             self:CancelLock()
@@ -254,54 +274,54 @@ end
 function Aimbot:CreateUI(Tab)
     local Main = Tab:AddLeftGroupbox("Aimbot")
     local Right = Tab:AddRightGroupbox("FOV & Sensitivity")
-    
+
     Main:AddToggle("DeepAimbotEnabled", {
         Text = "Enabled",
         Default = false,
         Callback = function(v) self.Env.Settings.Enabled = v end
     })
-    
+
     Main:AddDropdown("LockPart", {
         Values = {"Head", "HumanoidRootPart", "Torso", "UpperTorso"},
         Default = "Head",
         Text = "Lock Part",
         Callback = function(v) self.Env.Settings.LockPart = v end
     })
-    
+
     Main:AddDropdown("TriggerKey", {
-        Values = {"MouseButton1", "MouseButton2", "E", "Q", "F", "T", "Shift", "Control"},
+        Values = {"MouseButton1", "MouseButton2", "E", "Q", "F", "T", "LeftShift", "LeftControl"},
         Default = "MouseButton2",
         Text = "Trigger Key",
         Callback = function(v) self.Env.Settings.TriggerKey = v end
     })
-    
+
     Main:AddToggle("ToggleMode", {
         Text = "Toggle Mode",
         Default = false,
-        Callback = function(v) 
+        Callback = function(v)
             self.Env.Settings.Toggle = v
             self:SetupConnections()
         end
     })
-    
+
     Main:AddToggle("TeamCheck", {
         Text = "Team Check",
         Default = false,
         Callback = function(v) self.Env.Settings.TeamCheck = v end
     })
-    
+
     Main:AddToggle("AliveCheck", {
         Text = "Alive Check",
         Default = true,
         Callback = function(v) self.Env.Settings.AliveCheck = v end
     })
-    
+
     Main:AddToggle("WallCheck", {
         Text = "Wall Check",
         Default = false,
         Callback = function(v) self.Env.Settings.WallCheck = v end
     })
-    
+
     Right:AddSlider("Sensitivity", {
         Text = "Smoothness",
         Default = 0,
@@ -310,13 +330,13 @@ function Aimbot:CreateUI(Tab)
         Rounding = 2,
         Callback = function(v) self.Env.Settings.Sensitivity = v end
     })
-    
+
     Right:AddToggle("FOVEnabled", {
         Text = "Show FOV",
         Default = false,
         Callback = function(v) self.Env.FOVSettings.Enabled = v end
     })
-    
+
     Right:AddSlider("FOVAmount", {
         Text = "FOV Size",
         Default = 90,
@@ -324,7 +344,7 @@ function Aimbot:CreateUI(Tab)
         Max = 500,
         Callback = function(v) self.Env.FOVSettings.Amount = v end
     })
-    
+
     Right:AddSlider("FOVTransparency", {
         Text = "Transparency",
         Default = 0.5,
@@ -333,7 +353,7 @@ function Aimbot:CreateUI(Tab)
         Rounding = 2,
         Callback = function(v) self.Env.FOVSettings.Transparency = v end
     })
-    
+
     Right:AddSlider("FOVThickness", {
         Text = "Thickness",
         Default = 1,
@@ -341,18 +361,18 @@ function Aimbot:CreateUI(Tab)
         Max = 10,
         Callback = function(v) self.Env.FOVSettings.Thickness = v end
     })
-    
+
     Right:AddToggle("FOVFilled", {
         Text = "Filled Circle",
         Default = false,
         Callback = function(v) self.Env.FOVSettings.Filled = v end
     })
-    
+
     Right:AddLabel("FOV Color"):AddColorPicker("FOVColor", {
         Default = Color3.fromRGB(255, 255, 255),
         Callback = function(v) self.Env.FOVSettings.Color = v end
     })
-    
+
     Right:AddLabel("Locked FOV Color"):AddColorPicker("FOVLockedColor", {
         Default = Color3.fromRGB(255, 70, 70),
         Callback = function(v) self.Env.FOVSettings.LockedColor = v end
@@ -360,9 +380,12 @@ function Aimbot:CreateUI(Tab)
 end
 
 function Aimbot:Cleanup()
+    self.Running = false
+    self:CancelLock()
     self:DisconnectAll()
-    if self.FOVCircle and self.FOVCircle.Remove then
-        self.FOVCircle:Remove()
+    if self.FOVCircle then
+        pcall(function() self.FOVCircle:Remove() end)
+        self.FOVCircle = nil
     end
 end
 

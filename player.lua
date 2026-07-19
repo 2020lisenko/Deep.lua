@@ -7,17 +7,25 @@ local Players = game:GetService("Players")
 
 function Player:Initialize(Tab)
     local self = setmetatable({}, Player)
-    print("Player module loading...")
-    
+
     self.LocalPlayer = Players.LocalPlayer
     self.Connections = {}
     self.noclipEnabled = false
     self.InfiniteJumpEnabled = false
     self.flySpeed = 50
-    
+
+    self.currentWalkSpeed = 16
+    self.currentJumpHeight = 7.2
+
+    self.originalCanCollide = {}
+
+    self.loopWalkEnabled = false
+    self.loopJumpEnabled = false
+    self.loopWalkConnection = nil
+    self.loopJumpConnection = nil
+
     local Movement = Tab:AddLeftGroupbox("Movement")
-    
-    -- WalkSpeed
+
     Movement:AddSlider("WalkSpeed", {
         Text = "Walk Speed",
         Default = 16,
@@ -25,14 +33,42 @@ function Player:Initialize(Tab)
         Max = 200,
         Rounding = 0,
         Callback = function(v)
+            self.currentWalkSpeed = v
             local char = self.LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.WalkSpeed = v
             end
         end
     })
-    
-    -- JumpHeight
+
+    local LoopWalkToggle = Movement:AddToggle("LoopWalkSpeed", {
+        Text = "Loop Walk Speed",
+        Default = false,
+        Callback = function(v)
+            self.loopWalkEnabled = v
+            if v then
+                self:StartLoopWalk()
+            else
+                self:StopLoopWalk()
+            end
+        end
+    })
+
+    LoopWalkToggle:AddKeyPicker("LoopWalkKeybind", {
+        Text = "Loop Walk Keybind",
+        Default = "None",
+        Mode = "Toggle",
+        SyncToggleState = true,
+        Callback = function(v)
+            self.loopWalkEnabled = v
+            if v then
+                self:StartLoopWalk()
+            else
+                self:StopLoopWalk()
+            end
+        end
+    })
+
     Movement:AddSlider("JumpHeight", {
         Text = "Jump Height",
         Default = 7.2,
@@ -40,17 +76,44 @@ function Player:Initialize(Tab)
         Max = 50,
         Rounding = 1,
         Callback = function(v)
+            self.currentJumpHeight = v
             local char = self.LocalPlayer.Character
             if char and char:FindFirstChild("Humanoid") then
                 char.Humanoid.JumpHeight = v
             end
         end
     })
-    
-    -- Character features
+
+    local LoopJumpToggle = Movement:AddToggle("LoopJump", {
+        Text = "Loop Jump",
+        Default = false,
+        Callback = function(v)
+            self.loopJumpEnabled = v
+            if v then
+                self:StartLoopJump()
+            else
+                self:StopLoopJump()
+            end
+        end
+    })
+
+    LoopJumpToggle:AddKeyPicker("LoopJumpKeybind", {
+        Text = "Loop Jump Keybind",
+        Default = "None",
+        Mode = "Toggle",
+        SyncToggleState = true,
+        Callback = function(v)
+            self.loopJumpEnabled = v
+            if v then
+                self:StartLoopJump()
+            else
+                self:StopLoopJump()
+            end
+        end
+    })
+
     local Character = Tab:AddLeftGroupbox("Character")
-    
-    -- Fly toggle с биндом
+
     local FlyToggle = Character:AddToggle("Fly", {
         Text = "Fly",
         Default = false,
@@ -62,7 +125,7 @@ function Player:Initialize(Tab)
             end
         end
     })
-    
+
     FlyToggle:AddKeyPicker("FlyKeybind", {
         Text = "Fly Keybind",
         Default = "F",
@@ -76,8 +139,7 @@ function Player:Initialize(Tab)
             end
         end
     })
-    
-    -- Fly Speed slider
+
     Character:AddSlider("FlySpeed", {
         Text = "Fly Speed",
         Default = 50,
@@ -88,8 +150,7 @@ function Player:Initialize(Tab)
             self.flySpeed = v
         end
     })
-    
-    -- Noclip toggle с биндом
+
     local NoclipToggle = Character:AddToggle("Noclip", {
         Text = "Noclip",
         Default = false,
@@ -102,7 +163,7 @@ function Player:Initialize(Tab)
             end
         end
     })
-    
+
     NoclipToggle:AddKeyPicker("NoclipKeybind", {
         Text = "Noclip Keybind",
         Default = "G",
@@ -117,8 +178,7 @@ function Player:Initialize(Tab)
             end
         end
     })
-    
-    -- Infinite Jump toggle
+
     Character:AddToggle("InfiniteJump", {
         Text = "Infinite Jump",
         Default = false,
@@ -126,19 +186,70 @@ function Player:Initialize(Tab)
             self.InfiniteJumpEnabled = v
         end
     })
-    
-    -- Initialize Infinite Jump connection
+
     self:SetupInfiniteJump()
-    
-    -- Обработка респавна (чтобы скрипт не ломался при смерти)
+
     local respawnConn = self.LocalPlayer.CharacterAdded:Connect(function(newChar)
-        -- Отключаем эффекты при смерти, чтобы не было багов с новым персонажем
-        if self.flyConnection then self:StopFly() end
+        local hum = newChar:WaitForChild("Humanoid", 5)
+        if not hum then return end
+
+        self:StopFly()
+        self.originalCanCollide = {}
+
+        hum.WalkSpeed = self.currentWalkSpeed
+        hum.JumpHeight = self.currentJumpHeight
+
+        if self.loopWalkEnabled then self:StartLoopWalk() end
+        if self.loopJumpEnabled then self:StartLoopJump() end
     end)
     table.insert(self.Connections, respawnConn)
-    
-    print("Player module loaded!")
+
     return self
+end
+
+function Player:StartLoopWalk()
+    self:StopLoopWalk()
+    self.loopWalkConnection = RunService.Stepped:Connect(function()
+        if not self.loopWalkEnabled then return end
+        local char = self.LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChild("Humanoid")
+            if hum then
+                hum.WalkSpeed = self.currentWalkSpeed
+            end
+        end
+    end)
+end
+
+function Player:StopLoopWalk()
+    if self.loopWalkConnection then
+        self.loopWalkConnection:Disconnect()
+        self.loopWalkConnection = nil
+    end
+end
+
+function Player:StartLoopJump()
+    self:StopLoopJump()
+    self.loopJumpConnection = RunService.Stepped:Connect(function()
+        if not self.loopJumpEnabled then return end
+        local char = self.LocalPlayer.Character
+        if not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+        local state = hum:GetState()
+        if state == Enum.HumanoidStateType.Running
+            or state == Enum.HumanoidStateType.RunningNoPhysics
+            or state == Enum.HumanoidStateType.StrafingNoPhysics then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end)
+end
+
+function Player:StopLoopJump()
+    if self.loopJumpConnection then
+        self.loopJumpConnection:Disconnect()
+        self.loopJumpConnection = nil
+    end
 end
 
 function Player:SetupInfiniteJump()
@@ -147,7 +258,7 @@ function Player:SetupInfiniteJump()
             local char = self.LocalPlayer.Character
             if char then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
-                if humanoid then
+                if humanoid and humanoid.Health > 0 then
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
                 end
             end
@@ -157,44 +268,49 @@ function Player:SetupInfiniteJump()
 end
 
 function Player:StartFly()
-    self:StopFly() -- Убеждаемся, что старый полет выключен
-    
+    self:StopFly()
+
     local char = self.LocalPlayer.Character
     if not char then return end
-    
+
     local hum = char:FindFirstChild("Humanoid")
     local root = char:FindFirstChild("HumanoidRootPart")
     if not hum or not root then return end
-    
+
     hum.PlatformStand = true
-    
-    -- Создаем и сохраняем ссылки только на НАШИ BodyMovers
+
     self.flyBV = Instance.new("BodyVelocity")
     self.flyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     self.flyBV.Velocity = Vector3.zero
     self.flyBV.Parent = root
-    
+
     self.flyBG = Instance.new("BodyGyro")
     self.flyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     self.flyBG.D = 500
     self.flyBG.P = 3000
     self.flyBG.CFrame = workspace.CurrentCamera.CFrame
     self.flyBG.Parent = root
-    
+
     self.flyConnection = RunService.RenderStepped:Connect(function()
-        if not char or not char.Parent or hum.Health <= 0 then
+        local cam = workspace.CurrentCamera
+        if not cam or not self.flyBV or not self.flyBG or not self.flyBV.Parent or not self.flyBG.Parent then return end
+
+        local currentChar = self.LocalPlayer.Character
+        if not currentChar or not currentChar:FindFirstChild("Humanoid") then
             self:StopFly()
             return
         end
-        
-        local cam = workspace.CurrentCamera
-        if not cam or not self.flyBV or not self.flyBG then return end
-        
+        local currentHum = currentChar:FindFirstChildOfClass("Humanoid")
+        if not currentHum or currentHum.Health <= 0 then
+            self:StopFly()
+            return
+        end
+
         self.flyBG.CFrame = cam.CFrame
-        
+
         local currentFlySpeed = self.flySpeed or 50
         local moveVel = Vector3.zero
-        
+
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then
             moveVel = moveVel + cam.CFrame.LookVector
         end
@@ -213,16 +329,13 @@ function Player:StartFly()
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
             moveVel = moveVel - Vector3.new(0, 1, 0)
         end
-        
-        -- Нормализуем вектор, чтобы при диагональном полете скорость не увеличивалась
+
         if moveVel.Magnitude > 0 then
             moveVel = moveVel.Unit * currentFlySpeed
         end
-        
+
         self.flyBV.Velocity = moveVel
     end)
-    
-    print("Fly enabled")
 end
 
 function Player:StopFly()
@@ -230,44 +343,50 @@ function Player:StopFly()
         self.flyConnection:Disconnect()
         self.flyConnection = nil
     end
-    
+
     if self.flyBV then
         self.flyBV:Destroy()
         self.flyBV = nil
     end
-    
+
     if self.flyBG then
         self.flyBG:Destroy()
         self.flyBG = nil
     end
-    
+
     local char = self.LocalPlayer.Character
     if char then
         local hum = char:FindFirstChild("Humanoid")
-        if hum then 
-            hum.PlatformStand = false 
+        if hum then
+            hum.PlatformStand = false
         end
     end
-    
-    print("Fly disabled")
 end
 
 function Player:StartNoclip()
-    self:StopNoclip() -- Очищаем старый коннект, если он был
-    
+    self:StopNoclip()
+
+    local char = self.LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                self.originalCanCollide[part] = part.CanCollide
+            end
+        end
+    end
+
     self.noclipConnection = RunService.Stepped:Connect(function()
         if not self.noclipEnabled then return end
-        
-        local char = self.LocalPlayer.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
+
+        local character = self.LocalPlayer.Character
+        if character then
+            for _, part in pairs(character:GetDescendants()) do
                 if part:IsA("BasePart") and part.CanCollide then
                     part.CanCollide = false
                 end
             end
         end
     end)
-    print("Noclip enabled")
 end
 
 function Player:StopNoclip()
@@ -275,30 +394,34 @@ function Player:StopNoclip()
         self.noclipConnection:Disconnect()
         self.noclipConnection = nil
     end
-    
+
     local char = self.LocalPlayer.Character
     if char then
         for _, part in pairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
-                part.CanCollide = true
+                local original = self.originalCanCollide[part]
+                part.CanCollide = (original ~= nil) and original or true
             end
         end
     end
-    print("Noclip disabled")
+
+    self.originalCanCollide = {}
 end
 
 function Player:Cleanup()
     self:StopFly()
     self:StopNoclip()
+    self:StopLoopWalk()
+    self:StopLoopJump()
     self.noclipEnabled = false
     self.InfiniteJumpEnabled = false
-    
+    self.loopWalkEnabled = false
+    self.loopJumpEnabled = false
+
     for _, conn in pairs(self.Connections) do
         if conn then pcall(function() conn:Disconnect() end) end
     end
     self.Connections = {}
-    
-    print("Player cleanup complete!")
 end
 
 return Player

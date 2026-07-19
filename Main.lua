@@ -1,46 +1,96 @@
 local originalRepo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-local myRepo = "https://raw.githubusercontent.com/2020lisenko/Deep.lua/refs/heads/main/"
+local myRepo       = "https://raw.githubusercontent.com/2020lisenko/Deep.lua/refs/heads/main/"
 
-local Library = loadstring(game:HttpGet(originalRepo .. "Library.lua"))()
+local Library      = loadstring(game:HttpGet(originalRepo .. "Library.lua"))()
 local ThemeManager = loadstring(game:HttpGet(originalRepo .. "addons/ThemeManager.lua"))()
-local SaveManager = loadstring(game:HttpGet(originalRepo .. "addons/SaveManager.lua"))()
+local SaveManager  = loadstring(game:HttpGet(originalRepo .. "addons/SaveManager.lua"))()
 
 local Options = Library.Options
-local Toggles = Library.Toggles
 
-Library.ForceCheckbox = false
+Library.ForceCheckbox             = false
 Library.ShowToggleFrameInKeybinds = true
 
+local MODULE_NAMES = {"aimbot", "hitbox", "esp", "visuals", "player"}
+
 local ModuleLoader = {
-    Repo = myRepo,
-    LoadedModules = {}
+    Repo          = myRepo,
+    LoadedModules = {},
 }
 
-function ModuleLoader:LoadModule(moduleName, ...)
-    local url = self.Repo .. moduleName .. ".lua"
-    print("Loading module: " .. url)
-    
-    local success, result = pcall(function()
-        local moduleCode = game:HttpGet(url)
-        local moduleFunc, err = loadstring(moduleCode)
-        if not moduleFunc then
-            error("Syntax error in " .. moduleName .. ": " .. tostring(err))
-        end
-        return moduleFunc()
+function ModuleLoader:TryLoadString(src, moduleName)
+    local fn, err = loadstring(src)
+    if not fn then
+        warn("[Deep.lua] Syntax error in " .. moduleName .. ":", err)
+        return nil
+    end
+    local ok, result = pcall(fn)
+    if not ok then
+        warn("[Deep.lua] Runtime error in " .. moduleName .. ":", result)
+        return nil
+    end
+    return result
+end
+
+function ModuleLoader:TryReadLocal(moduleName)
+    local success, data = pcall(function()
+        return readfile(moduleName .. ".lua")
     end)
-    
-    if success and result then
-        self.LoadedModules[moduleName] = result:Initialize(...)
-        print("Module loaded: " .. moduleName)
-        return self.LoadedModules[moduleName]
-    else
-        warn("Failed to load " .. moduleName .. ":", result)
+    if success and data then
+        return self:TryLoadString(data, moduleName)
     end
     return nil
 end
 
+function ModuleLoader:TryHttpGet(moduleName)
+    local url = self.Repo .. moduleName .. ".lua"
+    local success, data = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if success and data then
+        return self:TryLoadString(data, moduleName)
+    end
+    return nil
+end
+
+function ModuleLoader:TryEmbedded(moduleName)
+    local embedded = _G["_DeepModule_" .. moduleName]
+    if embedded then
+        return self:TryLoadString(embedded, moduleName)
+    end
+    return nil
+end
+
+function ModuleLoader:Load(moduleName, ...)
+    local module = self:TryReadLocal(moduleName)
+    if not module then
+        module = self:TryHttpGet(moduleName)
+    end
+    if not module then
+        module = self:TryEmbedded(moduleName)
+    end
+
+    if module then
+        local ok, instance = pcall(module.Initialize, module, ...)
+        if ok and instance then
+            self.LoadedModules[moduleName] = instance
+            return instance
+        else
+            warn("[Deep.lua] Initialize failed in " .. moduleName .. ":", instance)
+        end
+    end
+
+    warn("[Deep.lua] Failed to load " .. moduleName)
+    Library:Notify({
+        Title       = "Deep.lua — Load Error",
+        Description = moduleName .. " failed to load.\nPut " .. moduleName .. ".lua in your executor workspace.",
+        Time        = 6,
+        Icon        = "triangle-alert",
+    })
+    return nil
+end
+
 function ModuleLoader:CleanupAll()
-    for name, module in pairs(self.LoadedModules) do
+    for _, module in pairs(self.LoadedModules) do
         if module and module.Cleanup then
             pcall(module.Cleanup, module)
         end
@@ -49,19 +99,23 @@ function ModuleLoader:CleanupAll()
 end
 
 local Window = Library:CreateWindow({
-    Title = "Deep.lua",
-    Footer = "version: 1.67 | by Zeptome",
-    Icon = 11717093063,
-    NotifySide = "Right",
-    ShowCustomCursor = true,
+    Title                = "Deep.lua",
+    Footer               = "v1.67  ·  by Zeptome",
+    Icon                 = 11717093063,
+    NotifySide           = "Right",
+    ShowCustomCursor     = true,
+    Resizable            = true,
+    EnableSidebarResize  = true,
+    CornerRadius         = 8,
+    Animations           = true,
 })
 
 local Tabs = {
-    Combat = Window:AddTab("Combat", "swords"),
-    ESP = Window:AddTab("ESP", "eye"),
-    Visuals = Window:AddTab("Visuals", "palette"),
-    Player = Window:AddTab("Player", "user"),
-    ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+    Combat     = Window:AddTab("Combat",     "swords"),
+    ESP        = Window:AddTab("ESP",        "eye"),
+    Visuals    = Window:AddTab("Visuals",    "palette"),
+    Player     = Window:AddTab("Player",     "user"),
+    UISettings = Window:AddTab("UI",         "settings"),
 }
 
 ThemeManager:SetLibrary(Library)
@@ -71,128 +125,178 @@ SaveManager:SetIgnoreIndexes({"MenuKeybind"})
 ThemeManager:SetFolder("Deep.lua")
 SaveManager:SetFolder("Deep.lua/specific-game")
 SaveManager:SetSubFolder("specific-place")
-SaveManager:BuildConfigSection(Tabs["UI Settings"])
-ThemeManager:ApplyToTab(Tabs["UI Settings"])
 
-local Watermark = Library:AddDraggableLabel("Deep.lua | 60 fps | 0 ms", 11717093063, "Left")
+local Watermark = Library:AddDraggableLabel(
+    "Deep.lua  |  — fps  |  — ms",
+    11717093063,
+    "Left"
+)
 Watermark:SetVisible(true)
 
-local FrameTimer = tick()
+local FrameTimer   = tick()
 local FrameCounter = 0
-local FPS = 60
+local FPS          = 60
 
 local WatermarkConnection = game:GetService("RunService").RenderStepped:Connect(function()
     FrameCounter += 1
     if (tick() - FrameTimer) >= 1 then
-        FPS = FrameCounter
+        FPS        = FrameCounter
         FrameTimer = tick()
         FrameCounter = 0
     end
-    
-    local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
-    
-    Watermark:SetText(("Deep.lua | %s fps | %s ms"):format(
-        math.floor(FPS),
-        ping
-    ))
+
+    local ping = math.floor(
+        game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue()
+    )
+    Watermark:SetText(("Deep.lua  |  %d fps  |  %d ms"):format(math.floor(FPS), ping))
 end)
 
-print("Loading modules...")
-local AimbotModule = ModuleLoader:LoadModule("aimbot", Tabs.Combat)
-local HitboxModule = ModuleLoader:LoadModule("hitbox", Tabs.Combat)
-local ESPModule = ModuleLoader:LoadModule("esp", Tabs.ESP)
-local VisualsModule = ModuleLoader:LoadModule("visuals", Tabs.Visuals)
-local PlayerModule = ModuleLoader:LoadModule("player", Tabs.Player)
-print("All modules loaded!")
+local AimbotModule  = ModuleLoader:Load("aimbot",  Tabs.Combat)
+local HitboxModule  = ModuleLoader:Load("hitbox",  Tabs.Combat)
+local ESPModule     = ModuleLoader:Load("esp",     Tabs.ESP)
+local VisualsModule = ModuleLoader:Load("visuals", Tabs.Visuals)
+local PlayerModule  = ModuleLoader:Load("player",  Tabs.Player)
 
-local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
+local LeftTabbox   = Tabs.UISettings:AddLeftTabbox()
+local TabInterface = LeftTabbox:AddTab("Interface", "monitor")
+local TabConfigs   = LeftTabbox:AddTab("Configs",   "save")
+
+local MenuGroup = Tabs.UISettings:AddRightGroupbox("Menu", "wrench")
+
+TabInterface:AddToggle("ShowCustomCursor", {
+    Text    = "Custom Cursor",
+    Default = Library.ShowCustomCursor,
+    Tooltip = "Shows a custom cursor while the menu is open.",
+    Callback = function(v)
+        Library.ShowCustomCursor = v
+    end,
+})
+
+TabInterface:AddToggle("ShowWatermark", {
+    Text    = "Show Watermark",
+    Default = true,
+    Tooltip = "Toggles the FPS / ping label in the top-left corner.",
+    Callback = function(v)
+        Watermark:SetVisible(v)
+    end,
+})
+
+TabInterface:AddDivider()
+
+TabInterface:AddDropdown("NotificationSide", {
+    Values  = {"Left", "Right"},
+    Default = "Right",
+    Text    = "Notification Side",
+    Tooltip = "Which side of the screen notifications pop up on.",
+    Callback = function(v)
+        Library:SetNotifySide(v)
+    end,
+})
+
+TabInterface:AddDropdown("DPIDropdown", {
+    Values  = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
+    Default = "100%",
+    Text    = "DPI Scale",
+    Tooltip = "Scales the entire UI. Useful on high-resolution monitors.",
+    Callback = function(v)
+        local dpi = tonumber(tostring(v):gsub("%%", ""))
+        Library:SetDPIScale(dpi)
+    end,
+})
+
+TabInterface:AddSlider("UICornerSlider", {
+    Text     = "Corner Radius",
+    Default  = 8,
+    Min      = 0,
+    Max      = 20,
+    Rounding = 0,
+    Tooltip  = "Controls how rounded the UI corners are (0 = sharp, 20 = pill).",
+    Callback = function(v)
+        Window:SetCornerRadius(v)
+    end,
+})
+
+ThemeManager:ApplyToTab(TabInterface)
+SaveManager:BuildConfigSection(TabConfigs)
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
+    Text    = "Open Keybind Menu",
     Default = Library.KeybindFrame.Visible,
-    Text = "Open Keybind Menu",
-    Callback = function(value)
-        Library.KeybindFrame.Visible = value
+    Tooltip = "Shows or hides the floating keybind list.",
+    Callback = function(v)
+        Library.KeybindFrame.Visible = v
     end,
-})
-
-MenuGroup:AddToggle("ShowCustomCursor", {
-    Text = "Custom Cursor",
-    Default = Library.ShowCustomCursor,
-    Callback = function(Value)
-        Library.ShowCustomCursor = Value
-    end,
-})
-
-MenuGroup:AddToggle("ShowWatermark", {
-    Text = "Show Watermark",
-    Default = true,
-    Callback = function(Value)
-        Watermark:SetVisible(Value)
-    end,
-})
-
-MenuGroup:AddDropdown("NotificationSide", {
-    Values = {"Left", "Right"},
-    Default = "Right",
-    Text = "Notification Side",
-    Callback = function(Value)
-        Library:SetNotifySide(Value)
-    end,
-})
-
-MenuGroup:AddDropdown("DPIDropdown", {
-    Values = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
-    Default = "100%",
-    Text = "DPI Scale",
-    Callback = function(Value)
-        Value = Value:gsub("%%", "")
-        local DPI = tonumber(Value)
-        Library:SetDPIScale(DPI)
-    end,
-})
-
-MenuGroup:AddSlider("UICornerSlider", {
-    Text = "Corner Radius",
-    Default = 16,
-    Min = 0,
-    Max = 20,
-    Rounding = 0,
-    Callback = function(value)
-        Window:SetCornerRadius(value)
-    end
 })
 
 MenuGroup:AddDivider()
-MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", { 
-    Default = "RightShift", 
-    NoUI = true, 
-    Text = "Menu keybind" 
+
+MenuGroup:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+    Default = "RightShift",
+    Text    = "Menu keybind",
 })
 
-MenuGroup:AddButton("Unload", function()
-    WatermarkConnection:Disconnect()
-    Watermark:Destroy()
-    ModuleLoader:CleanupAll()
-    getgenv().Deep = nil
-    getgenv().DeepESP = nil
-    getgenv().DeepVisuals = nil
-    getgenv().DeepPlayer = nil
-    Library:Unload()
-end)
+MenuGroup:AddDivider()
+
+MenuGroup:AddButton({
+    Text = "Unload Deep.lua",
+    Func = function()
+        local Dialog = Window:AddDialog("UnloadConfirm", {
+            Title = "Unload Deep.lua?",
+            Icon  = "triangle-alert",
+            FooterButtons = {
+                {
+                    Text = "Unload",
+                    Callback = function()
+                        Library:Unload()
+                    end,
+                },
+                {
+                    Text = "Cancel",
+                    Callback = function() end,
+                },
+            },
+        })
+
+        Dialog:AddLabel("All active features will be disabled and\nthe UI will be removed from the game.")
+    end,
+    Tooltip = "Completely removes Deep.lua from the game.",
+})
+
+local PanicButton = Library:AddDraggableButton(
+    "⬛ Panic",
+    "x",
+    "Right",
+    function()
+        Library:Unload()
+    end
+)
 
 Library.ToggleKeybind = Options.MenuKeybind
 
 ThemeManager:ApplyTheme("Material")
-
 SaveManager:LoadAutoloadConfig()
 
+task.delay(0.5, function()
+    local place = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    Library:Notify({
+        Title       = "Deep.lua",
+        Description = ("Loaded in %s\nPress %s to toggle the menu."):format(
+            place,
+            "RightShift"
+        ),
+        Time        = 7,
+        BigIcon     = tostring(11717093063),
+        Icon        = "zap",
+    })
+end)
+
 Library:OnUnload(function()
-    print("Deep.lua unloaded!")
     WatermarkConnection:Disconnect()
     Watermark:Destroy()
+    pcall(function() PanicButton:Destroy() end)
     ModuleLoader:CleanupAll()
-    getgenv().Deep = nil
-    getgenv().DeepESP = nil
+    getgenv().Deep        = nil
+    getgenv().DeepESP     = nil
     getgenv().DeepVisuals = nil
-    getgenv().DeepPlayer = nil
+    getgenv().DeepPlayer  = nil
 end)
