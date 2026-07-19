@@ -144,13 +144,11 @@ local ESPModule     = ModuleLoader:Load("esp",     Tabs.ESP)
 local VisualsModule = ModuleLoader:Load("visuals", Tabs.Visuals)
 local PlayerModule  = ModuleLoader:Load("player",  Tabs.Player)
 
-local LeftTabbox   = Tabs.UISettings:AddLeftTabbox()
-local TabInterface = LeftTabbox:AddTab("Interface", "monitor")
-local TabConfigs   = LeftTabbox:AddTab("Configs",   "save")
-
 local MenuGroup = Tabs.UISettings:AddRightGroupbox("Menu", "wrench")
 
-TabInterface:AddToggle("ShowCustomCursor", {
+local UIGroup = Tabs.UISettings:AddLeftGroupbox("Interface", "monitor")
+
+UIGroup:AddToggle("ShowCustomCursor", {
     Text    = "Custom Cursor",
     Default = Library.ShowCustomCursor,
     Tooltip = "Shows a custom cursor while the menu is open.",
@@ -159,7 +157,7 @@ TabInterface:AddToggle("ShowCustomCursor", {
     end,
 })
 
-TabInterface:AddToggle("ShowWatermark", {
+UIGroup:AddToggle("ShowWatermark", {
     Text    = "Show Watermark",
     Default = true,
     Tooltip = "Toggles the FPS / ping label in the top-left corner.",
@@ -168,9 +166,9 @@ TabInterface:AddToggle("ShowWatermark", {
     end,
 })
 
-TabInterface:AddDivider()
+UIGroup:AddDivider()
 
-TabInterface:AddDropdown("NotificationSide", {
+UIGroup:AddDropdown("NotificationSide", {
     Values  = {"Left", "Right"},
     Default = "Right",
     Text    = "Notification Side",
@@ -180,7 +178,7 @@ TabInterface:AddDropdown("NotificationSide", {
     end,
 })
 
-TabInterface:AddDropdown("DPIDropdown", {
+UIGroup:AddDropdown("DPIDropdown", {
     Values  = {"50%", "75%", "100%", "125%", "150%", "175%", "200%"},
     Default = "100%",
     Text    = "DPI Scale",
@@ -191,7 +189,7 @@ TabInterface:AddDropdown("DPIDropdown", {
     end,
 })
 
-TabInterface:AddSlider("UICornerSlider", {
+UIGroup:AddSlider("UICornerSlider", {
     Text     = "Corner Radius",
     Default  = 8,
     Min      = 0,
@@ -203,8 +201,8 @@ TabInterface:AddSlider("UICornerSlider", {
     end,
 })
 
-ThemeManager:ApplyToTab(TabInterface)
-SaveManager:BuildConfigSection(TabConfigs)
+ThemeManager:ApplyToTab(Tabs.UISettings)
+SaveManager:BuildConfigSection(Tabs.UISettings)
 
 MenuGroup:AddToggle("KeybindMenuOpen", {
     Text    = "Open Keybind Menu",
