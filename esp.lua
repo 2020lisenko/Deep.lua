@@ -59,6 +59,11 @@ local function GetCase(text, ct)
 end
 
 function ESP:Initialize(Tab)
+    if not getgenv().DeepESP then
+        getgenv().DeepESP = {}
+    end
+    self.Env = getgenv().DeepESP
+
     local self = setmetatable({}, ESP)
 
     self.Enabled = false
