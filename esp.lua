@@ -70,6 +70,8 @@ function ESP:Initialize(Tab)
     self.Config = {
         Box = {
             Enabled = false,
+            Color = Color3.fromRGB(255,255,255),
+            UseGradient = false,
             Gradient = {
                 Color1 = Color3.fromRGB(255,255,255),
                 Color2 = Color3.fromRGB(255,255,255),
@@ -77,6 +79,7 @@ function ESP:Initialize(Tab)
             },
             Filled = {
                 Enabled = false,
+                Color = Color3.fromRGB(255,255,255),
                 Gradient = {
                     Color1 = Color3.fromRGB(255,255,255),
                     Color2 = Color3.fromRGB(255,255,255),
@@ -146,7 +149,7 @@ function ESP:CreateBox(plr)
     local box = Instance.new("Frame")
     box.Name = "Box_"..plr.Name; box.BackgroundTransparency = 1; box.BorderSizePixel = 0; box.Parent = gui
     local stroke = Instance.new("UIStroke")
-    stroke.Thickness = 2; stroke.Color = Color3.new(1,1,1); stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Parent = box
+    stroke.Thickness = 2; stroke.Color = self.Config.Box.Color; stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border; stroke.Parent = box
     local sgrad = Instance.new("UIGradient")
     sgrad.Name = "Gradient"; sgrad.Rotation = 45
     sgrad.Color = ColorSequence.new({
@@ -154,9 +157,10 @@ function ESP:CreateBox(plr)
         ColorSequenceKeypoint.new(0.5, self.Config.Box.Gradient.Color2),
         ColorSequenceKeypoint.new(1, self.Config.Box.Gradient.Color3),
     })
+    sgrad.Enabled = self.Config.Box.UseGradient
     sgrad.Parent = stroke
     local fill = Instance.new("Frame")
-    fill.Name = "Fill"; fill.BackgroundColor3 = Color3.new(1,1,1); fill.BackgroundTransparency = 0.5
+    fill.Name = "Fill"; fill.BackgroundColor3 = self.Config.Box.Filled.Color; fill.BackgroundTransparency = 0.5
     fill.BorderSizePixel = 0; fill.Visible = false; fill.Parent = gui; fill.ZIndex = -1
     local fgrad = Instance.new("UIGradient")
     fgrad.Name = "FillGrad"; fgrad.Rotation = self.Config.Box.Filled.Gradient.Rotation.Amount; fgrad.Parent = fill
@@ -348,13 +352,18 @@ function ESP:Update()
         local bx = c.Box
         if cfg.Box.Enabled then
             bx.Box.Visible = true; bx.Box.Position = UDim2.fromOffset(pos.X, by); bx.Box.Size = UDim2.fromOffset(scale.X, scale.Y)
-            bx.StrokeGrad.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, cfg.Box.Gradient.Color1),
-                ColorSequenceKeypoint.new(0.5, cfg.Box.Gradient.Color2),
-                ColorSequenceKeypoint.new(1, cfg.Box.Gradient.Color3),
-            })
+            bx.Stroke.Color = cfg.Box.Color
+            bx.StrokeGrad.Enabled = cfg.Box.UseGradient
+            if cfg.Box.UseGradient then
+                bx.StrokeGrad.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, cfg.Box.Gradient.Color1),
+                    ColorSequenceKeypoint.new(0.5, cfg.Box.Gradient.Color2),
+                    ColorSequenceKeypoint.new(1, cfg.Box.Gradient.Color3),
+                })
+            end
             if cfg.Box.Filled.Enabled then
                 bx.Fill.Visible = true; bx.Fill.Position = UDim2.fromOffset(pos.X, by); bx.Fill.Size = UDim2.fromOffset(scale.X, scale.Y)
+                bx.Fill.BackgroundColor3 = cfg.Box.Filled.Color
                 bx.FillGrad.Color = ColorSequence.new({
                     ColorSequenceKeypoint.new(0, cfg.Box.Filled.Gradient.Color1),
                     ColorSequenceKeypoint.new(0.5, cfg.Box.Filled.Gradient.Color2),
@@ -453,12 +462,14 @@ function ESP:BuildUI(Tab)
     local R = Tab:AddRightGroupbox("Text & Bars")
 
     local bt = L:AddToggle("ESP_Box", { Text = "Box", Default = false, Callback = function(v) self.Config.Box.Enabled = v end })
-    local bColors = L:AddLabel("Box Gradient Colors", "palette")
-    bColors:AddColorPicker("BoxCol1", { Default = self.Config.Box.Gradient.Color1, Title = "Color 1", Callback = function(v) self.Config.Box.Gradient.Color1 = v end })
-    bt:AddColorPicker("BoxCol2", { Default = self.Config.Box.Gradient.Color2, Title = "Color 2", Callback = function(v) self.Config.Box.Gradient.Color2 = v end })
-    bt:AddColorPicker("BoxCol3", { Default = self.Config.Box.Gradient.Color3, Title = "Color 3", Callback = function(v) self.Config.Box.Gradient.Color3 = v end })
+    bt:AddColorPicker("BoxColor", { Default = self.Config.Box.Color, Title = "Box Color", Callback = function(v) self.Config.Box.Color = v end })
+    local bg = L:AddToggle("BoxGrad", { Text = "Box Gradient", Default = false, Callback = function(v) self.Config.Box.UseGradient = v end })
+    bg:AddColorPicker("BoxCol1", { Default = self.Config.Box.Gradient.Color1, Title = "Color 1", Callback = function(v) self.Config.Box.Gradient.Color1 = v end })
+    bg:AddColorPicker("BoxCol2", { Default = self.Config.Box.Gradient.Color2, Title = "Color 2", Callback = function(v) self.Config.Box.Gradient.Color2 = v end })
+    bg:AddColorPicker("BoxCol3", { Default = self.Config.Box.Gradient.Color3, Title = "Color 3", Callback = function(v) self.Config.Box.Gradient.Color3 = v end })
 
     local ft = L:AddToggle("ESP_Fill", { Text = "Filled Box", Default = false, Callback = function(v) self.Config.Box.Filled.Enabled = v end })
+    ft:AddColorPicker("FillColor", { Default = self.Config.Box.Filled.Color, Title = "Fill Color", Callback = function(v) self.Config.Box.Filled.Color = v end })
     L:AddLabel("Fill Gradient", "palette"):AddColorPicker("FillCol1", { Default = self.Config.Box.Filled.Gradient.Color1, Title = "Fill 1", Callback = function(v) self.Config.Box.Filled.Gradient.Color1 = v end })
     ft:AddColorPicker("FillCol2", { Default = self.Config.Box.Filled.Gradient.Color2, Title = "Fill 2", Callback = function(v) self.Config.Box.Filled.Gradient.Color2 = v end })
     ft:AddColorPicker("FillCol3", { Default = self.Config.Box.Filled.Gradient.Color3, Title = "Fill 3", Callback = function(v) self.Config.Box.Filled.Gradient.Color3 = v end })
