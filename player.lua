@@ -344,22 +344,22 @@ function Player:StopFly()
         self.flyConnection = nil
     end
 
-    if self.flyBV then
-        self.flyBV:Destroy()
-        self.flyBV = nil
-    end
-
-    if self.flyBG then
-        self.flyBG:Destroy()
-        self.flyBG = nil
-    end
-
     local char = self.LocalPlayer.Character
     if char then
         local hum = char:FindFirstChild("Humanoid")
         if hum then
             hum.PlatformStand = false
         end
+    end
+
+    if self.flyBV then
+        pcall(self.flyBV.Destroy, self.flyBV)
+        self.flyBV = nil
+    end
+
+    if self.flyBG then
+        pcall(self.flyBG.Destroy, self.flyBG)
+        self.flyBG = nil
     end
 end
 
@@ -409,10 +409,6 @@ function Player:StopNoclip()
 end
 
 function Player:Cleanup()
-    self:StopFly()
-    self:StopNoclip()
-    self:StopLoopWalk()
-    self:StopLoopJump()
     self.noclipEnabled = false
     self.InfiniteJumpEnabled = false
     self.loopWalkEnabled = false
@@ -422,6 +418,11 @@ function Player:Cleanup()
         if conn then pcall(function() conn:Disconnect() end) end
     end
     self.Connections = {}
+
+    self:StopFly()
+    self:StopNoclip()
+    self:StopLoopWalk()
+    self:StopLoopJump()
 end
 
 return Player
