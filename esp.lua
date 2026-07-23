@@ -18,12 +18,10 @@ function ESP:Initialize(Tab)
     self.DB          = false
     self.globalTime  = 0
 
-    
     self.playerESP   = {}  
     self.highlights  = {}  
     self.chams       = {}  
 
-    
     self.selfHighlight   = nil
     self.selfAura        = nil
     self.selfWalkParts   = {}
@@ -31,14 +29,12 @@ function ESP:Initialize(Tab)
     self.selfChinaHat    = nil
     self.selfConnections = {}
 
-    
     self.crosshairLines  = nil
     self.blurInstance    = nil
     self.origMinZoom     = self.LocalPlayer.CameraMinZoomDistance
     self.origMaxZoom     = self.LocalPlayer.CameraMaxZoomDistance
     self.origFOV         = workspace.CurrentCamera and workspace.CurrentCamera.FieldOfView or 70
 
-    
     self.hitSound        = Instance.new("Sound")
     self.hitSound.SoundId = "rbxassetid://4612165786"
     self.hitSound.Volume  = 0.5
@@ -47,6 +43,10 @@ function ESP:Initialize(Tab)
     self.hitMarker2DAlpha = 0
     self.hitConnections  = {}
     self.dmgNumbers      = {}
+    
+    -- Кэширование параметров Raycast для оптимизации
+    self.raycastParams = RaycastParams.new()
+    self.raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
     self:LoadDefaults()
     self:CreateUI(Tab)
@@ -58,7 +58,6 @@ end
 function ESP:LoadDefaults()
     local S = {}
 
-    
     S.Box           = false
     S.BoxColor1     = Color3.fromRGB(255, 60,  60)
     S.BoxColor2     = Color3.fromRGB(60,  60,  255)
@@ -68,14 +67,12 @@ function ESP:LoadDefaults()
     S.BoxMaterial   = "Normal"   
     S.BoxThickness  = 1.5
 
-    
     S.Highlight           = false
     S.HighlightFill       = Color3.fromRGB(255, 60, 60)
     S.HighlightOutline    = Color3.fromRGB(255, 255, 255)
     S.HighlightFillTransp    = 0.5
     S.HighlightOutlineTransp = 0
 
-    
     S.Chams               = false
     S.ChamsMaterial       = "Neon"
     S.ChamsFill           = Color3.fromRGB(255, 0, 200)
@@ -83,7 +80,6 @@ function ESP:LoadDefaults()
     S.ChamsFillTransp     = 0.5
     S.ChamsOutlineTransp  = 0
 
-    
     S.Name          = false
     S.NameColor     = Color3.fromRGB(255, 255, 255)
     S.NameOutline   = Color3.fromRGB(0, 0, 0)
@@ -93,18 +89,15 @@ function ESP:LoadDefaults()
     S.DistColor     = Color3.fromRGB(180, 180, 180)
     S.TextSize      = 13
 
-    
     S.Healthbar     = false
     S.HpHigh        = Color3.fromRGB(0,   230, 70)
     S.HpMid         = Color3.fromRGB(255, 200, 0)
     S.HpLow         = Color3.fromRGB(255, 40,  40)
 
-    
     S.TeamCheck     = false
     S.MaxDist       = 2000
     S.ResizeOutline = false
 
-    
     S.SelfHL           = false
     S.SelfHLFill       = Color3.fromRGB(100, 200, 255)
     S.SelfHLOutline    = Color3.fromRGB(255, 255, 255)
@@ -123,7 +116,6 @@ function ESP:LoadDefaults()
     S.Headless         = false
     S.Korblox          = false
 
-    
     S.Crosshair        = false
     S.CrosshairColor   = Color3.fromRGB(255, 255, 255)
     S.CrosshairOutline = Color3.fromRGB(0, 0, 0)
@@ -141,7 +133,6 @@ function ESP:LoadDefaults()
     S.MotionBlur       = false
     S.MotionBlurSize   = 24
 
-    
     S.DmgNumber        = false
     S.DmgColor         = Color3.fromRGB(255, 255, 80)
     S.HitMarker2D      = false
@@ -192,8 +183,6 @@ function ESP:boxSegColor(perimT, ratio)
     elseif m == "Health" then
         return self:hpColor(ratio)
     else
-        
-        
         if perimT < 0.25 then          
             return S.BoxColor1
         elseif perimT < 0.50 then      
@@ -212,10 +201,10 @@ function ESP:isVisible(char)
     local from = (lc:FindFirstChild("Head") or lc:FindFirstChild("HumanoidRootPart"))
     local to   = char:FindFirstChild("Head")
     if not from or not to then return false end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {lc}
-    local res = workspace:Raycast(from.Position, (to.Position - from.Position).Unit * 5000, params)
+    
+    -- Используем кэшированные параметры для производительности
+    self.raycastParams.FilterDescendantsInstances = {lc}
+    local res = workspace:Raycast(from.Position, (to.Position - from.Position).Unit * 5000, self.raycastParams)
     return res ~= nil and res.Instance ~= nil and res.Instance:IsDescendantOf(char)
 end
 
@@ -312,7 +301,6 @@ function ESP:drawBox(e, lx, rx, ty, by, bw, bh, ratio)
         local t1 = i / n
         local tm = (t0 + t1) * 0.5
 
-        
         local cs = self:boxSegColor(0.00 + 0.25 * tm, ratio)
         e.top[i].Color = cs
         e.top[i].From  = Vector2.new(lx + t0 * bw, ty)
@@ -344,6 +332,7 @@ function ESP:drawBox(e, lx, rx, ty, by, bw, bh, ratio)
 end
 
 function ESP:getBounds(char)
+    if not self.Camera then return nil end
     local hrp  = char:FindFirstChild("HumanoidRootPart")
     local head = char:FindFirstChild("Head")
     if not hrp or not head then return nil end
@@ -476,7 +465,6 @@ function ESP:Update(dt)
         local char = player.Character
         local hum  = char and char:FindFirstChildOfClass("Humanoid")
 
-        
         if S.TeamCheck and player.Team and self.LocalPlayer.Team
             and player.Team == self.LocalPlayer.Team then
             self:hidePlayerDrawings(self.playerESP[player])
@@ -485,7 +473,6 @@ function ESP:Update(dt)
             continue
         end
 
-        
         if lhrp and char and char:FindFirstChild("HumanoidRootPart") then
             if (lhrp.Position - char.HumanoidRootPart.Position).Magnitude > S.MaxDist then
                 self:hidePlayerDrawings(self.playerESP[player])
@@ -502,14 +489,12 @@ function ESP:Update(dt)
             continue
         end
 
-        
         if S.Highlight then self:applyHighlight(player)
         else self:removeHighlight(player) end
 
         if S.Chams then self:applyChams(player)
         else self:removeChams(player) end
 
-        
         if self.highlights[player] then
             local h = self.highlights[player]
             h.FillColor           = S.HighlightFill
@@ -525,7 +510,6 @@ function ESP:Update(dt)
             c.OutlineTransparency = S.ChamsOutlineTransp
         end
 
-        
         local anyDrawing = S.Box or S.BoxFilled or S.Name or S.Weapon or S.Distance or S.Healthbar
         if not anyDrawing then
             self:hidePlayerDrawings(self.playerESP[player])
@@ -543,7 +527,6 @@ function ESP:Update(dt)
         end
         local e = self.playerESP[player]
 
-        
         local bh  = math.max(bounds.h, 25)
         local bw  = math.max(self:dynWidth(bounds.h, bounds.dist), 30)
         local cy  = bounds.cx
@@ -553,7 +536,6 @@ function ESP:Update(dt)
         local rx  = cy + bw * 0.5
         local ratio = hum.Health / math.max(hum.MaxHealth, 1)
 
-        
         if S.Box then
             self:drawBox(e, lx, rx, ty, by, bw, bh, ratio)
         else
@@ -561,7 +543,6 @@ function ESP:Update(dt)
             setArrVisible(e.bottom, false); setArrVisible(e.left, false)
         end
 
-        
         if S.BoxFilled then
             e.fill.Color        = S.BoxFillColor
             e.fill.Transparency = S.BoxFillTransp
@@ -572,7 +553,6 @@ function ESP:Update(dt)
             e.fill.Visible = false
         end
 
-        
         local HP_W = S.ResizeOutline and math.max(2, bw * 0.04) or 3
         local HP_OFF = 5
         if S.Healthbar then
@@ -591,7 +571,6 @@ function ESP:Update(dt)
             e.hpBar.Visible = false
         end
 
-        
         if S.Name then
             e.name.Text         = player.DisplayName
             e.name.Color        = S.NameColor
@@ -603,7 +582,6 @@ function ESP:Update(dt)
             e.name.Visible = false
         end
 
-        
         local wep = self:getWeapon(char)
         if S.Weapon and wep ~= "" then
             e.weapon.Text     = wep
@@ -615,7 +593,6 @@ function ESP:Update(dt)
             e.weapon.Visible = false
         end
 
-        
         if S.Distance then
             local m = math.floor(bounds.dist * 0.28 * 10) / 10
             e.dist.Text     = string.format("%.1f m", m)
@@ -628,7 +605,6 @@ function ESP:Update(dt)
         end
     end
 
-    
     for p, e in pairs(self.playerESP) do
         if not alive[p] then
             self:removePlayerDrawings(e)
@@ -638,7 +614,6 @@ function ESP:Update(dt)
         end
     end
 
-    
     self:UpdateHitMarker2D(dt)
     self:UpdateDmgNumbers(dt)
     if S.Crosshair then self:UpdateCrosshair() end
@@ -796,7 +771,6 @@ function ESP:ApplyChinaHat()
     hat.Material   = Enum.Material.SmoothPlastic
     hat.Parent     = char
 
-    
     hat.CFrame = head.CFrame * CFrame.new(0, 1.0, 0)
 
     local mesh = Instance.new("SpecialMesh", hat)
@@ -820,7 +794,7 @@ function ESP:RemoveChinaHat()
     local char = self.LocalPlayer.Character
     if char then
         local h = char:FindFirstChild("_DeepChinaHat")
-        if h then h:Destroy() end
+        if h then pcall(function() h:Destroy() end) end
     end
 end
 
@@ -831,7 +805,6 @@ function ESP:ApplyHeadless()
     if head then
         head.Transparency = 1
         for _, d in ipairs(head:GetDescendants()) do
-            
             if d:IsA("Decal") or d:IsA("Texture") then
                 d.Transparency = 1
             end
@@ -869,14 +842,12 @@ function ESP:ApplyKorblox()
     local char = self.LocalPlayer.Character
     if not char then return end
 
-    
     local leftParts = {"LeftUpperLeg","LeftLowerLeg","LeftFoot","Left Leg"}
     for _, name in ipairs(leftParts) do
         local p = char:FindFirstChild(name)
         if p and p:IsA("BasePart") then p.Transparency = 1 end
     end
 
-    
     local anchor = char:FindFirstChild("LeftUpperLeg")
         or char:FindFirstChild("Left Leg")
         or char:FindFirstChild("HumanoidRootPart")
@@ -923,7 +894,7 @@ function ESP:RemoveKorblox()
     
     for _, name in ipairs({"_DeepKorbloxLeg","_DeepKorbloxRing"}) do
         local p = char:FindFirstChild(name)
-        if p then p:Destroy() end
+        if p then pcall(function() p:Destroy() end) end
     end
 end
 
@@ -937,7 +908,6 @@ function ESP:CreateCrosshair()
         l.Thickness = thick
         return l
     end
-    
     
     self.crosshairLines = {
         cl(S.CrosshairThick + 2), cl(S.CrosshairThick + 2),
@@ -957,6 +927,7 @@ end
 function ESP:UpdateCrosshair()
     local S  = self.env.S
     if not self.crosshairLines then self:CreateCrosshair() end
+    if not workspace.CurrentCamera then return end
     local vp  = workspace.CurrentCamera.ViewportSize
     local cx  = vp.X / 2
     local cy  = vp.Y / 2
@@ -970,7 +941,6 @@ function ESP:UpdateCrosshair()
         {Vector2.new(cx + gap, cy),      Vector2.new(cx + gap + sz, cy)},  
     }
     for i, d in ipairs(dirs) do
-        
         local ol = self.crosshairLines[i]
         ol.Color     = S.CrosshairOutline
         ol.From      = d[1]; ol.To = d[2]
@@ -996,7 +966,9 @@ function ESP:SetUnlockZoom(enable)
 end
 
 function ESP:SetDisableRendering(enable)
-    workspace.StreamingEnabled = not enable  
+    pcall(function()
+        workspace.StreamingEnabled = not enable  
+    end)
 end
 
 function ESP:SetFOV(enable, amount)
@@ -1007,13 +979,15 @@ end
 
 function ESP:SetMotionBlur(enable, size)
     if enable then
-        if not self.blurInstance then
+        if not self.blurInstance and workspace.CurrentCamera then
             local b = Instance.new("BlurEffect")
             b.Name = "_DeepBlur"
             b.Parent = workspace.CurrentCamera
             self.blurInstance = b
         end
-        self.blurInstance.Size = size
+        if self.blurInstance then
+            self.blurInstance.Size = size
+        end
     else
         if self.blurInstance then
             pcall(function() self.blurInstance:Destroy() end)
@@ -1023,22 +997,25 @@ function ESP:SetMotionBlur(enable, size)
 end
 
 function ESP:SetupHitDetection()
-    for _, conn in pairs(self.hitConnections) do conn:Disconnect() end
+    for _, conn in pairs(self.hitConnections) do pcall(function() conn:Disconnect() end) end
     self.hitConnections = {}
 
     local function hookPlayer(player)
         local function hookChar(char)
-            local hum = char:WaitForChild("Humanoid", 5)
-            if not hum then return end
-            local lastHP = hum.Health
-            local conn = hum.HealthChanged:Connect(function(hp)
-                if hp < lastHP then
-                    local dmg = lastHP - hp
-                    self:OnHit(player, char, dmg)
-                end
-                lastHP = hp
+            -- Обёрнуто в task.spawn чтобы не блочить поток
+            task.spawn(function()
+                local hum = char:WaitForChild("Humanoid", 5)
+                if not hum then return end
+                local lastHP = hum.Health
+                local conn = hum.HealthChanged:Connect(function(hp)
+                    if hp < lastHP then
+                        local dmg = lastHP - hp
+                        self:OnHit(player, char, dmg)
+                    end
+                    lastHP = hp
+                end)
+                table.insert(self.hitConnections, conn)
             end)
-            table.insert(self.hitConnections, conn)
         end
         if player.Character then hookChar(player.Character) end
         local c = player.CharacterAdded:Connect(hookChar)
@@ -1099,6 +1076,7 @@ end
 
 function ESP:UpdateDmgNumbers(dt)
     local cam = workspace.CurrentCamera
+    if not cam then return end
     local toRemove = {}
     for i, n in ipairs(self.dmgNumbers) do
         n.timer = n.timer + dt
@@ -1136,7 +1114,7 @@ end
 
 function ESP:UpdateHitMarker2D(dt)
     local S = self.env.S
-    if not self.hitMarker2DObjs then return end
+    if not self.hitMarker2DObjs or not workspace.CurrentCamera then return end
     self.hitMarker2DAlpha = math.max(0, self.hitMarker2DAlpha - dt * 5)
     local alpha = self.hitMarker2DAlpha
 
@@ -1260,7 +1238,8 @@ function ESP:SetupConnections()
         if S.Korblox      then self:ApplyKorblox() end
     end
 
-    self.LocalPlayer.CharacterAdded:Connect(onCharAdded)
+    local conn = self.LocalPlayer.CharacterAdded:Connect(onCharAdded)
+    table.insert(self.selfConnections, conn)
 
     self:SetupHitDetection()
 end
@@ -1272,11 +1251,6 @@ function ESP:CreateUI(Tab)
     local H  = Tab:AddLeftGroupbox("HUD")
     local G  = Tab:AddRightGroupbox("Game")
 
-    
-    
-    
-
-    
     local BoxTog = P:AddToggle("ESPBox", {
         Text = "Box", Default = false,
         Callback = function(v) S.Box = v end
@@ -1290,7 +1264,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.BoxColor2 = v end
     })
 
-    
     local FilledTog = P:AddToggle("ESPFilled", {
         Text = "Filled", Default = false,
         Callback = function(v) S.BoxFilled = v end
@@ -1300,7 +1273,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.BoxFillColor = v end
     })
 
-    
     P:AddDropdown("ESPMaterial", {
         Values  = {"Normal","Glow","Rainbow","Health"},
         Default = "Normal",
@@ -1308,7 +1280,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.BoxMaterial = v end
     })
 
-    
     local HLTog = P:AddToggle("ESPHighlight", {
         Text = "Highlight", Default = false,
         Callback = function(v)
@@ -1327,7 +1298,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.HighlightOutline = v end
     })
 
-    
     local ChamsTog = P:AddToggle("ESPChams", {
         Text = "Chams", Default = false,
         Callback = function(v)
@@ -1346,7 +1316,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.ChamsOutline = v end
     })
 
-    
     local NameTog = P:AddToggle("ESPName", {
         Text = "Name", Default = false,
         Callback = function(v) S.Name = v end
@@ -1360,7 +1329,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.NameOutline = v end
     })
 
-    
     local WepTog = P:AddToggle("ESPWeapon", {
         Text = "Weapon", Default = false,
         Callback = function(v) S.Weapon = v end
@@ -1370,7 +1338,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.WeaponColor = v end
     })
 
-    
     local DistTog = P:AddToggle("ESPDist", {
         Text = "Distance", Default = false,
         Callback = function(v) S.Distance = v end
@@ -1380,7 +1347,6 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.DistColor = v end
     })
 
-    
     local HpTog = P:AddToggle("ESPHealthbar", {
         Text = "Healthbar", Default = false,
         Callback = function(v) S.Healthbar = v end
@@ -1398,19 +1364,16 @@ function ESP:CreateUI(Tab)
         Callback = function(v) S.HpLow = v end
     })
 
-    
     P:AddToggle("ESPTeamCheck", {
         Text = "Team Check", Default = false,
         Callback = function(v) S.TeamCheck = v end
     })
 
-    
     P:AddToggle("ESPResizeOutline", {
         Text = "Resize Outline", Default = false,
         Callback = function(v) S.ResizeOutline = v end
     })
 
-    
     P:AddDivider()
     local mainTog = P:AddToggle("ESPEnabled", {
         Text = "Enable ESP", Default = false,
@@ -1425,10 +1388,6 @@ function ESP:CreateUI(Tab)
             if v then self:StartESP() else self:StopESP() end
         end
     })
-
-    
-    
-    
 
     local SHLTog = SE:AddToggle("SelfHL", {
         Text = "Character Highlight", Default = false,
@@ -1549,10 +1508,6 @@ function ESP:CreateUI(Tab)
         end
     })
 
-    
-    
-    
-
     local CrossTog = H:AddToggle("HUDCrosshair", {
         Text = "Drawing Crosshair", Default = false,
         Callback = function(v)
@@ -1618,8 +1573,6 @@ function ESP:CreateUI(Tab)
         Text    = "Aspect Ratio",
         Callback = function(v)
             S.AspectRatio = v
-            
-            
         end
     })
 
@@ -1638,10 +1591,6 @@ function ESP:CreateUI(Tab)
             if self.blurInstance then self.blurInstance.Size = v end
         end
     })
-
-    
-    
-    
 
     local DmgTog = G:AddToggle("DmgNumber", {
         Text = "Damage Number", Default = false,
@@ -1712,7 +1661,6 @@ end
 function ESP:Cleanup()
     self:StopESP()
 
-    
     self:RemoveSelfHighlight()
     self:RemoveParticleAura()
     self:RemoveWalkSteps()
@@ -1722,30 +1670,24 @@ function ESP:Cleanup()
     self:RemoveKorblox()
     self:RestoreSelfMaterial()
 
-    
     self:DestroyCrosshair()
     pcall(function() self:SetUnlockZoom(false) end)
     pcall(function() self:SetFOV(false) end)
     pcall(function() self:SetMotionBlur(false) end)
 
-    
     for _, c in pairs(self.hitConnections) do pcall(function() c:Disconnect() end) end
     self.hitConnections = {}
 
-    
     if self.hitMarker2DObjs then
         for _, l in ipairs(self.hitMarker2DObjs) do pcall(function() l:Remove() end) end
         self.hitMarker2DObjs = nil
     end
 
-    
     for _, n in ipairs(self.dmgNumbers) do pcall(function() n.obj:Remove() end) end
     self.dmgNumbers = {}
 
-    
     pcall(function() self.hitSound:Destroy() end)
 
-    
     for _, c in pairs(self.selfConnections) do pcall(function() c:Disconnect() end) end
     self.selfConnections = {}
 end
